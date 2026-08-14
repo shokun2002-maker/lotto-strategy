@@ -7,8 +7,11 @@ import LottoBall from "@/components/lotto/LottoBall";
 import { getSavedCombinations } from "@/lib/lotto/storage";
 import { getSavedStrategies } from "@/lib/lotto/strategy-storage";
 import { analyzeUserProfile } from "@/lib/lotto/user-profile";
+import { createClient } from "@/lib/supabase/client";
 import { UserLottoProfile } from "@/types/lotto";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   User,
   Zap,
@@ -21,21 +24,57 @@ import {
   Sparkles,
   Pin,
   Ban,
-  ArrowRight,
-  Hash,
+  LogIn,
+  UserPlus,
+  LogOut,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function MyPage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<UserLottoProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
 
   useEffect(() => {
+    // 1. LocalStorage 기반 프로필 분석
     const combinations = getSavedCombinations();
     const strategies = getSavedStrategies();
     const result = analyzeUserProfile(combinations, strategies);
     setProfile(result);
     setIsLoaded(true);
+
+    // 2. Supabase Auth 사용자 정보 로드
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        setUser(data.user);
+      });
+
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setUser(session?.user ?? null);
+        }
+      );
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    } catch {
+      // Supabase 연동 방어
+    }
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      setUser(null);
+      router.refresh();
+    } catch {
+      // ignore
+    }
+  };
 
   const hasAnyData =
     profile &&
@@ -47,6 +86,63 @@ export default function MyPage() {
       <Header title="MY" showBackButton={false} />
 
       <main className="flex-1 w-full max-w-md mx-auto px-5 pt-6 pb-4 space-y-6">
+        {/* Auth Account Status CTA Banner */}
+        {user ? (
+          <section className="w-full bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 block">계정 로그인됨</span>
+                  <span className="text-sm font-extrabold text-white truncate max-w-[200px] block">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-blue-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
+                  계정으로 안전하게 이어서 사용하세요
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  회원가입 후 저장한 번호와 전략을 보관할 수 있습니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Link
+                href="/signup"
+                className="h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>회원가입</span>
+              </Link>
+              <Link
+                href="/login"
+                className="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>로그인</span>
+              </Link>
+            </div>
+          </section>
+        )}
+
         {/* Main Hero Copy */}
         <section className="space-y-1.5 pt-1">
           <div className="flex items-center gap-2 text-blue-600 font-extrabold text-xs">
