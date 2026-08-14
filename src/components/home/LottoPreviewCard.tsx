@@ -2,27 +2,19 @@
 
 import React, { useState } from "react";
 import LottoBall from "../lotto/LottoBall";
+import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { RefreshCw, Sparkles } from "lucide-react";
 
 export default function LottoPreviewCard() {
-  const [numbers, setNumbers] = useState<number[]>([7, 14, 22, 28, 33, 41]);
+  const [numbers, setNumbers] = useState<number[]>(() => [7, 14, 22, 28, 33, 41]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    // Generate 6 random non-repeating numbers from 1 to 45
     setTimeout(() => {
-      const newNumbers: number[] = [];
-      while (newNumbers.length < 6) {
-        const r = Math.floor(Math.random() * 45) + 1;
-        if (!newNumbers.includes(r)) {
-          newNumbers.push(r);
-        }
-      }
-      newNumbers.sort((a, b) => a - b);
-      setNumbers(newNumbers);
+      setNumbers(generateRandomNumbers());
       setIsRefreshing(false);
-    }, 300);
+    }, 150);
   };
 
   return (
