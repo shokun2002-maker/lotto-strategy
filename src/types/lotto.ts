@@ -59,6 +59,64 @@ export interface SavedCustomStrategy {
   usageCount: number; // 생성 버튼 실행 횟수
 }
 
+export interface UserLottoProfile {
+  totalSavedCombinations: number;
+  totalSavedStrategies: number;
+  totalStrategyUsageCount: number;
+
+  selectionRatio: {
+    hasData: boolean;
+    userPickedCount: number;
+    recommendedCount: number;
+    userPickedPercentage: number;
+    recommendedPercentage: number;
+  };
+
+  favoriteUserPickedNumbers: Array<{
+    number: number;
+    count: number;
+  }>;
+
+  strategyUsage: {
+    hasData: boolean;
+    totalUsage: number;
+    items: Array<{
+      strategyId: LottoStrategyId;
+      label: string;
+      count: number;
+      percentage: number;
+    }>;
+  };
+
+  rangeDistribution: {
+    hasData: boolean;
+    items: Array<{
+      rangeKey: string;
+      label: string; // "1~10", "11~20" 등
+      count: number;
+      percentage: number;
+    }>;
+  };
+
+  averageAnalysis: {
+    hasData: boolean;
+    odd: number;
+    even: number;
+    low: number;
+    high: number;
+    sum: number;
+  };
+
+  strategyHabits: {
+    hasData: boolean;
+    totalStrategies: number;
+    withFixedNumbersCount: number;
+    withExcludedNumbersCount: number;
+    fixedPercentage: number;
+    excludedPercentage: number;
+  };
+}
+
 export interface LottoStrategyMeta {
   id: LottoStrategyId;
   name: string;
