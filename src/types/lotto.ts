@@ -38,11 +38,25 @@ export interface SavedLottoCombination {
   numbers: number[];
   source: LottoCombinationSource;
   strategyId?: LottoStrategyId;
+  customStrategyId?: string;
+  customStrategyName?: string;
   userPickedNumbers: number[];
   recommendedNumbers: number[];
   fixedNumbers?: number[];
   excludedNumbers?: number[];
   createdAt: string; // ISO String
+}
+
+export interface SavedCustomStrategy {
+  id: string;
+  name: string;
+  baseStrategy: LottoStrategyId;
+  fixedNumbers: number[];
+  excludedNumbers: number[];
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string;
+  usageCount: number; // 생성 버튼 실행 횟수
 }
 
 export interface LottoStrategyMeta {
@@ -97,5 +111,7 @@ export interface StrategyGenerationResult {
     fixedNumbers?: number[];
     excludedNumbers?: number[];
     isRelaxed?: boolean;
+    customStrategyId?: string;
+    customStrategyName?: string;
   };
 }

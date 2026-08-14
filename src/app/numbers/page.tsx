@@ -49,6 +49,10 @@ export default function NumbersPage() {
     const excludedCount = item.excludedNumbers?.length ?? 0;
 
     if (item.source === "strategy") {
+      if (item.customStrategyName) {
+        return `전략 · ${item.customStrategyName}`;
+      }
+
       let strategyName = "전략 · 균형형";
       if (item.strategyId === "recent-trend") {
         strategyName = "전략 · 최근흐름형";

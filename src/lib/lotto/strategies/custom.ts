@@ -5,7 +5,7 @@ import { generateLongAbsenceNumbers } from "./long-absence";
 import { getStrategyMeta } from "./index";
 
 /**
- * 나만의 커스텀 전략 번호 생성 엔진
+ * 나만의 커스텀 전략 번호 생성 엔진 (1게임)
  * 고정수(0~3개) + 제외수(0~5개) + 기본 전략(balanced | recent-trend | long-absence) 결합
  */
 export function generateCustomNumbers(
@@ -63,17 +63,14 @@ export function generateCustomNumbers(
   const finalNumbersSet = new Set(result.numbers);
   const excludedSet = new Set(cleanExcluded);
 
-  // 제외수가 혹시 포함되었다면 제거
   for (const ex of cleanExcluded) {
     finalNumbersSet.delete(ex);
   }
 
-  // 고정수가 빠졌다면 무조건 추가
   for (const fix of cleanFixed) {
     finalNumbersSet.add(fix);
   }
 
-  // 6개 채우기
   if (finalNumbersSet.size < 6) {
     for (let i = 1; i <= 45; i++) {
       if (finalNumbersSet.size >= 6) break;
@@ -87,7 +84,6 @@ export function generateCustomNumbers(
   const baseMeta = getStrategyMeta(options.baseStrategy);
   const baseName = baseMeta ? baseMeta.name : "균형형";
 
-  // 메타데이터 및 피처 번호 정리 (고정수 최우선)
   const featuredWithFixed = Array.from(new Set([...cleanFixed, ...result.featuredNumbers]));
 
   return {
@@ -101,4 +97,38 @@ export function generateCustomNumbers(
       description: `사용자가 선택한 고정수 ${cleanFixed.length}개 · 제외수 ${cleanExcluded.length}개 조건을 우선 적용하고, 나머지를 ${baseName} 방식으로 구성했습니다.`,
     },
   };
+}
+
+/**
+ * N게임 (1 / 3 / 5게임) 중복 없는 커스텀 번호 일괄 생성 함수
+ */
+export function generateMultipleCustomCombinations(
+  options: CustomStrategyOptions,
+  count: 1 | 3 | 5
+): StrategyGenerationResult[] {
+  const results: StrategyGenerationResult[] = [];
+  const seenKeys = new Set<string>();
+  const maxAttempts = 50;
+
+  for (let i = 0; i < count; i++) {
+    let currentRes: StrategyGenerationResult | null = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const candidate = generateCustomNumbers(options);
+      const key = candidate.numbers.join(",");
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        currentRes = candidate;
+        break;
+      }
+      currentRes = candidate;
+    }
+
+    if (currentRes) {
+      results.push(currentRes);
+    }
+  }
+
+  return results;
 }
