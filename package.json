@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lotto:update": "npx tsx scripts/update-lotto-data.ts",
+    "lotto:validate": "npx tsx scripts/update-lotto-data.ts --validate-only"
   },
   "dependencies": {
     "lucide-react": "^1.31.0",
