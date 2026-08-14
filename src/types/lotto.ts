@@ -4,9 +4,9 @@
 
 export interface GeneratorOptions {
   count?: number; // 기본값 6
-  includeNumbers?: number[]; // 직접 고른 포함수 (1~6개)
+  includeNumbers?: number[]; // 직접 고른 포함수/고정수 (1~6개)
   fixedNumbers?: number[]; // includeNumbers의 하위 호환
-  excludeNumbers?: number[]; // 제외수 (추후 확장)
+  excludeNumbers?: number[]; // 제외수 (0~5개)
   excludedNumbers?: number[]; // excludeNumbers의 하위 호환
 }
 
@@ -40,6 +40,8 @@ export interface SavedLottoCombination {
   strategyId?: LottoStrategyId;
   userPickedNumbers: number[];
   recommendedNumbers: number[];
+  fixedNumbers?: number[];
+  excludedNumbers?: number[];
   createdAt: string; // ISO String
 }
 
@@ -76,15 +78,24 @@ export interface StrategyFeaturedStat {
   label: string; // 예: "최근 30회 6회 출현", "최근 9회 미출현"
 }
 
+export interface CustomStrategyOptions {
+  baseStrategy: LottoStrategyId;
+  fixedNumbers: number[];
+  excludedNumbers: number[];
+}
+
 export interface StrategyGenerationResult {
   numbers: number[];
   strategyId: LottoStrategyId;
   analysis: LottoAnalysis;
   attempts: number;
-  featuredNumbers: number[]; // 전략 특징 후보군에서 선택된 번호들
+  featuredNumbers: number[]; // 전략 특징 및 고정수에서 선택된 번호들
   metadata: {
     description: string;
     windowSize?: number;
     featuredStats?: StrategyFeaturedStat[];
+    fixedNumbers?: number[];
+    excludedNumbers?: number[];
+    isRelaxed?: boolean;
   };
 }

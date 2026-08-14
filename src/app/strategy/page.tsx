@@ -4,11 +4,13 @@ import React, { useState } from "react";
 import Header from "@/components/common/Header";
 import BottomNavigation from "@/components/common/BottomNavigation";
 import LottoBall from "@/components/lotto/LottoBall";
+import CustomNumberSelector from "@/components/lotto/CustomNumberSelector";
 import AnalysisSummaryCard from "@/components/lotto/AnalysisSummaryCard";
 import { LOTTO_STRATEGIES } from "@/lib/lotto/strategies";
 import { generateBalancedNumbers } from "@/lib/lotto/strategies/balanced";
 import { generateRecentTrendNumbers } from "@/lib/lotto/strategies/recent-trend";
 import { generateLongAbsenceNumbers } from "@/lib/lotto/strategies/long-absence";
+import { generateCustomNumbers } from "@/lib/lotto/strategies/custom";
 import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
 import { getLatestDraw, getAllDraws } from "@/lib/lotto/draw-data";
 import { StrategyGenerationResult, LottoStrategyId } from "@/types/lotto";
@@ -24,6 +26,11 @@ import {
   TrendingUp,
   Clock,
   Scale,
+  Settings2,
+  ChevronDown,
+  ChevronUp,
+  Pin,
+  Ban,
 } from "lucide-react";
 
 export default function StrategyPage() {
@@ -32,9 +39,16 @@ export default function StrategyPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "duplicate">("idle");
 
+  // 나만의 커스텀 전략 설정 상태
+  const [showCustomSection, setShowCustomSection] = useState(false);
+  const [fixedNumbers, setFixedNumbers] = useState<number[]>([]);
+  const [excludedNumbers, setExcludedNumbers] = useState<number[]>([]);
+  const [customBaseStrategy, setCustomBaseStrategy] = useState<LottoStrategyId>("balanced");
+
   const latestDraw = getLatestDraw();
   const totalDrawCount = getAllDraws().length;
 
+  // 일반 3개 기본 전략 생성
   const handleGenerateStrategy = (strategyId: LottoStrategyId) => {
     setSelectedStrategyId(strategyId);
     setIsGenerating(true);
@@ -58,9 +72,31 @@ export default function StrategyPage() {
       }
 
       setIsGenerating(false);
-
-      // Scroll to result view
       window.scrollTo({ top: 400, behavior: "smooth" });
+    }, 150);
+  };
+
+  // 나만의 커스텀 전략 번호 생성 (고정수 + 제외수 + 기본전략)
+  const handleGenerateCustom = () => {
+    setIsGenerating(true);
+
+    setTimeout(() => {
+      const newResult = generateCustomNumbers({
+        baseStrategy: customBaseStrategy,
+        fixedNumbers,
+        excludedNumbers,
+      });
+
+      setResult(newResult);
+
+      if (isCombinationSaved(newResult.numbers)) {
+        setSaveStatus("duplicate");
+      } else {
+        setSaveStatus("idle");
+      }
+
+      setIsGenerating(false);
+      window.scrollTo({ top: 500, behavior: "smooth" });
     }, 150);
   };
 
@@ -72,8 +108,10 @@ export default function StrategyPage() {
       numbers: result.numbers,
       source: "strategy",
       strategyId: result.strategyId,
-      userPickedNumbers: result.featuredNumbers,
-      recommendedNumbers: result.numbers.filter((n) => !result.featuredNumbers.includes(n)),
+      userPickedNumbers: result.metadata.fixedNumbers ?? [],
+      recommendedNumbers: result.numbers.filter(
+        (n) => !(result.metadata.fixedNumbers ?? []).includes(n)
+      ),
     });
 
     if (res.success) {
@@ -107,15 +145,16 @@ export default function StrategyPage() {
     }
   };
 
-  const getFeaturedBadgeText = (id: LottoStrategyId) => {
-    switch (id) {
-      case "recent-trend":
-        return "최근";
-      case "long-absence":
-        return "미출현";
-      default:
-        return undefined;
+  const getBallBadgeText = (num: number) => {
+    if (!result) return undefined;
+    if (result.metadata.fixedNumbers?.includes(num)) {
+      return "고정";
     }
+    if (result.featuredNumbers.includes(num)) {
+      if (result.strategyId === "recent-trend") return "최근";
+      if (result.strategyId === "long-absence") return "미출현";
+    }
+    return undefined;
   };
 
   return (
@@ -152,12 +191,12 @@ export default function StrategyPage() {
           </section>
         )}
 
-        {/* Strategy Selection Cards List */}
+        {/* Basic 3 Strategy Selection Cards */}
         <section className="space-y-3.5">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-blue-600" />
-              전략 선택
+              기본 전략 선택
             </h2>
           </div>
 
@@ -211,6 +250,111 @@ export default function StrategyPage() {
           </div>
         </section>
 
+        {/* Custom Strategy Option Accordion / Card */}
+        <section className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <button
+            onClick={() => setShowCustomSection(!showCustomSection)}
+            className="w-full p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/80 shrink-0">
+                <Settings2 className="w-5 h-5 stroke-[2]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                    나만의 맞춤 전략 만들기
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-extrabold">
+                    맞춤 설정
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  고정수·제외수와 기본 전략을 자유롭게 조합합니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-slate-400">
+              {showCustomSection ? (
+                <ChevronUp className="w-5 h-5" />
+              ) : (
+                <ChevronDown className="w-5 h-5" />
+              )}
+            </div>
+          </button>
+
+          {showCustomSection && (
+            <div className="p-5 pt-2 border-t border-slate-100 space-y-5 bg-slate-50/50">
+              {/* 1. Custom Number Selector (Fixed & Excluded) */}
+              <CustomNumberSelector
+                fixedNumbers={fixedNumbers}
+                excludedNumbers={excludedNumbers}
+                onChangeFixed={setFixedNumbers}
+                onChangeExcluded={setExcludedNumbers}
+              />
+
+              {/* 2. Base Strategy Choice */}
+              <div className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3">
+                <span className="text-xs font-bold text-slate-500 block">
+                  3. 나머지 번호를 구성할 기본 전략 방식
+                </span>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {LOTTO_STRATEGIES.map((st) => {
+                    const isSelected = customBaseStrategy === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setCustomBaseStrategy(st.id)}
+                        className={`
+                          py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer flex flex-col items-center justify-center gap-1
+                          ${
+                            isSelected
+                              ? "bg-blue-50 text-blue-700 border-blue-300 shadow-2xs"
+                              : "bg-slate-50 text-slate-600 border-slate-200/70 hover:bg-slate-100"
+                          }
+                        `}
+                      >
+                        <span>{st.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Selected Summary Info Banner */}
+              <div className="w-full bg-white rounded-xl p-3.5 border border-slate-200/70 text-xs flex items-center justify-between">
+                <div className="space-y-0.5 text-slate-600 font-medium">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-blue-700 font-bold">
+                      <Pin className="w-3 h-3" />
+                      고정 {fixedNumbers.length}개
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="flex items-center gap-1 text-rose-700 font-bold">
+                      <Ban className="w-3 h-3" />
+                      제외 {excludedNumbers.length}개
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGenerateCustom}
+                  disabled={isGenerating}
+                  className="px-4 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-70"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`}
+                  />
+                  <span>내 전략으로 번호 만들기</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Strategy Generation Result Section */}
         {result && (
           <section className="w-full bg-white rounded-2xl p-5 border border-blue-200 shadow-md shadow-blue-500/5 space-y-5 transition-all animate-fadeIn">
@@ -228,14 +372,14 @@ export default function StrategyPage() {
             {/* 6 Lotto Balls Grid */}
             <div className="flex items-center justify-between gap-1.5 sm:gap-2 py-2">
               {result.numbers.map((num) => {
-                const isFeatured = result.featuredNumbers.includes(num);
+                const isFixed = result.metadata.fixedNumbers?.includes(num);
                 return (
                   <LottoBall
                     key={num}
                     number={num}
                     size="lg"
-                    isUserPick={isFeatured}
-                    badgeText={isFeatured ? getFeaturedBadgeText(result.strategyId) : undefined}
+                    isUserPick={isFixed}
+                    badgeText={getBallBadgeText(num)}
                   />
                 );
               })}
@@ -268,7 +412,7 @@ export default function StrategyPage() {
               )}
             </div>
 
-            {/* Action Buttons: Save + Re-generate */}
+            {/* Action Buttons: Save + Re-generate + Modify Condition */}
             <div className="space-y-2.5 pt-1">
               <button
                 onClick={handleSave}
@@ -302,16 +446,35 @@ export default function StrategyPage() {
                 )}
               </button>
 
-              <button
-                onClick={() => handleGenerateStrategy(result.strategyId)}
-                disabled={isGenerating}
-                className="w-full h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`}
-                />
-                <span>같은 전략으로 다시 만들기</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => {
+                    if (result.metadata.fixedNumbers || result.metadata.excludedNumbers) {
+                      handleGenerateCustom();
+                    } else {
+                      handleGenerateStrategy(result.strategyId);
+                    }
+                  }}
+                  disabled={isGenerating}
+                  className="h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`}
+                  />
+                  <span>같은 조건으로 다시 만들기</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowCustomSection(true);
+                    window.scrollTo({ top: 250, behavior: "smooth" });
+                  }}
+                  className="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Settings2 className="w-3.5 h-3.5 text-slate-500" />
+                  <span>조건 수정하기</span>
+                </button>
+              </div>
             </div>
           </section>
         )}

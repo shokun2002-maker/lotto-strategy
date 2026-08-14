@@ -1,10 +1,10 @@
 import { generateRandomNumbers } from "../generator";
 import { analyzeLottoNumbers } from "../analyzer";
 import { getAllNumberStatistics } from "../statistics";
-import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis } from "@/types/lotto";
+import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis, GeneratorOptions } from "@/types/lotto";
 
 /**
- * 배열 요소 무작위 셔플 (Fisher-Yates Shuffle) - tie 동률 편향 방지
+ * 배열 요소 무작위 셔플 (Fisher-Yates Shuffle)
  */
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
@@ -16,14 +16,19 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * 미출현 회차 수 기준 후보군 18개 산출 (동률 셔플 적용)
+ * 미출현 회차 수 기준 후보군 18개 산출 (제외수 필터링 & 동률 셔플 적용)
  */
-export function getLongAbsencePool(poolSize = 18): Array<{ number: number; absentDraws: number }> {
+export function getLongAbsencePool(
+  excludedNumbers: number[] = [],
+  poolSize = 18
+): Array<{ number: number; absentDraws: number }> {
   const stats = getAllNumberStatistics();
+  const excludedSet = new Set(excludedNumbers);
 
-  // 미출현 회차 수별로 그룹화
   const groupedByAbsence = new Map<number, number[]>();
   for (const s of stats) {
+    if (excludedSet.has(s.number)) continue; // 제외수 100% 후보군에서 제거
+
     const absence = s.drawsSinceLastAppearance;
     if (!groupedByAbsence.has(absence)) {
       groupedByAbsence.set(absence, []);
@@ -31,14 +36,11 @@ export function getLongAbsencePool(poolSize = 18): Array<{ number: number; absen
     groupedByAbsence.get(absence)!.push(s.number);
   }
 
-  // 미출현 회차 수 내림차순 정렬
   const sortedAbsences = Array.from(groupedByAbsence.keys()).sort((a, b) => b - a);
-
   const poolResult: Array<{ number: number; absentDraws: number }> = [];
 
   for (const absence of sortedAbsences) {
     const numsInAbsence = groupedByAbsence.get(absence)!;
-    // 동률 그룹 무작위 셔플
     const shuffledNums = shuffleArray(numsInAbsence);
 
     for (const num of shuffledNums) {
@@ -57,16 +59,14 @@ export function getLongAbsencePool(poolSize = 18): Array<{ number: number; absen
  */
 function checkLongAbsenceConditions(
   analysis: LottoAnalysis,
-  featuredNumbers: number[]
+  featuredNumbers: number[],
+  minFeaturedCount = 2
 ): boolean {
-  // 1. 후보군 포함 개수 최소 2개 이상
-  if (featuredNumbers.length < 2) return false;
+  if (featuredNumbers.length < minFeaturedCount) return false;
 
-  // 2. 최소 2개 이상 구간 사용
   const activeBandsCount = Object.values(analysis.ranges).filter((c) => c > 0).length;
   if (activeBandsCount < 2) return false;
 
-  // 3. 5개 이상 연속수열 금지
   let maxSeq = 1;
   let currSeq = 1;
   for (let i = 1; i < analysis.numbers.length; i++) {
@@ -83,30 +83,38 @@ function checkLongAbsenceConditions(
 }
 
 /**
- * 장기미출현형 전략 번호 생성 엔진
+ * 장기미출현형 전략 번호 생성 엔진 (GeneratorOptions 지원 확장)
  */
-export function generateLongAbsenceNumbers(maxAttempts = 1000): StrategyGenerationResult {
+export function generateLongAbsenceNumbers(
+  options: GeneratorOptions = {},
+  maxAttempts = 1000
+): StrategyGenerationResult {
+  const fixed = options.includeNumbers ?? options.fixedNumbers ?? [];
+  const excluded = options.excludeNumbers ?? options.excludedNumbers ?? [];
   const statsMap = new Map(getAllNumberStatistics().map((s) => [s.number, s]));
+
   let fallbackResult: StrategyGenerationResult | null = null;
 
+  const remainingSpots = Math.max(0, 6 - fixed.length);
+  const targetPickCount = Math.min(remainingSpots, Math.floor(Math.random() * 3) + 2);
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    // 동률 셔플이 반영된 장기 미출현 후보군 18개
-    const pool = getLongAbsencePool(18);
+    const pool = getLongAbsencePool(excluded, 18);
     const poolNumbers = pool.map((p) => p.number);
 
-    // 후보군 중 무작위 2~4개 선택
-    const pickCount = Math.floor(Math.random() * 3) + 2; // 2, 3, 4 중 하나
-    const shuffledPool = shuffleArray(poolNumbers);
-    const pickedFromPool = shuffledPool.slice(0, pickCount).sort((a, b) => a - b);
+    const availablePool = poolNumbers.filter((n) => !fixed.includes(n));
+    const shuffledPool = shuffleArray(availablePool);
+    const pickedFromPool = shuffledPool.slice(0, targetPickCount);
 
-    // 나머지 번호는 전체 영역에서 중복 없이 생성
+    const combinedIncludes = Array.from(new Set([...fixed, ...pickedFromPool]));
+
     const candidateNums = generateRandomNumbers({
-      includeNumbers: pickedFromPool,
+      includeNumbers: combinedIncludes,
+      excludeNumbers: excluded,
     });
 
     const analysis = analyzeLottoNumbers(candidateNums);
 
-    // 실제로 최종 조합에 포함된 후보군 번호들
     const actualFeatured = candidateNums.filter((num) => poolNumbers.includes(num));
 
     const featuredStats: StrategyFeaturedStat[] = actualFeatured.map((num) => {
@@ -128,10 +136,14 @@ export function generateLongAbsenceNumbers(maxAttempts = 1000): StrategyGenerati
       metadata: {
         description: `현재 기준으로 상대적으로 오랜 기간 등장하지 않은 번호 ${actualFeatured.length}개를 포함해 구성했습니다.`,
         featuredStats,
+        fixedNumbers: fixed,
+        excludedNumbers: excluded,
+        isRelaxed: false,
       },
     };
 
-    if (checkLongAbsenceConditions(analysis, actualFeatured)) {
+    const minFeaturedCount = fixed.length >= 4 ? 1 : 2;
+    if (checkLongAbsenceConditions(analysis, actualFeatured, minFeaturedCount)) {
       return currentResult;
     }
 

@@ -45,25 +45,38 @@ export default function NumbersPage() {
   };
 
   const getSourceBadgeText = (item: SavedLottoCombination) => {
+    const fixedCount = item.userPickedNumbers?.length ?? item.fixedNumbers?.length ?? 0;
+    const excludedCount = item.excludedNumbers?.length ?? 0;
+
     if (item.source === "strategy") {
+      let strategyName = "전략 · 균형형";
       if (item.strategyId === "recent-trend") {
-        return "전략 · 최근흐름형";
+        strategyName = "전략 · 최근흐름형";
+      } else if (item.strategyId === "long-absence") {
+        strategyName = "전략 · 장기미출현형";
       }
-      if (item.strategyId === "long-absence") {
-        return "전략 · 장기미출현형";
+
+      if (fixedCount > 0 || excludedCount > 0) {
+        return `${strategyName} (고정 ${fixedCount} · 제외 ${excludedCount})`;
       }
-      return "전략 · 균형형";
+      return strategyName;
     }
+
     if (item.source === "together") {
-      const userPickedCount = item.userPickedNumbers?.length ?? 0;
-      return `함께추천 ${userPickedCount > 0 ? `· 선택 ${userPickedCount}개` : ""}`;
+      return `함께추천 ${fixedCount > 0 ? `· 선택 ${fixedCount}개` : ""}`;
     }
+
     return "빠른추천";
   };
 
-  const getFeaturedBadgeText = (item: SavedLottoCombination) => {
-    if (item.source === "together") return "MY";
+  const getFeaturedBadgeText = (item: SavedLottoCombination, num: number) => {
+    if (item.source === "together") {
+      return item.userPickedNumbers?.includes(num) ? "MY" : undefined;
+    }
     if (item.source === "strategy") {
+      if (item.userPickedNumbers?.includes(num) || item.fixedNumbers?.includes(num)) {
+        return "고정";
+      }
       if (item.strategyId === "recent-trend") return "최근";
       if (item.strategyId === "long-absence") return "미출현";
     }
@@ -169,14 +182,16 @@ export default function NumbersPage() {
                   {/* 6 Lotto Balls Grid */}
                   <div className="flex items-center justify-between gap-1 sm:gap-2 py-1">
                     {item.numbers.map((num) => {
-                      const isUserPick = item.userPickedNumbers?.includes(num);
+                      const isUserPick =
+                        item.userPickedNumbers?.includes(num) ||
+                        item.fixedNumbers?.includes(num);
                       return (
                         <LottoBall
                           key={num}
                           number={num}
                           size="md"
                           isUserPick={isUserPick}
-                          badgeText={isUserPick ? getFeaturedBadgeText(item) : undefined}
+                          badgeText={getFeaturedBadgeText(item, num)}
                         />
                       );
                     })}

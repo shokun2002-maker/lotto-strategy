@@ -1,10 +1,10 @@
 import { generateRandomNumbers } from "../generator";
 import { analyzeLottoNumbers } from "../analyzer";
 import { getAllNumberStatistics } from "../statistics";
-import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis } from "@/types/lotto";
+import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis, GeneratorOptions } from "@/types/lotto";
 
 /**
- * 배열 요소 무작위 셔플 (Fisher-Yates Shuffle) - tie 동률 편향 방지
+ * 배열 요소 무작위 셔플 (Fisher-Yates Shuffle)
  */
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
@@ -16,14 +16,19 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * 최근 30회 출현 횟수 기준 후보군 18개 산출 (동률 셔플 적용)
+ * 최근 30회 출현 횟수 기준 후보군 18개 산출 (제외수 필터링 & 동률 셔플 적용)
  */
-export function getRecentTrendPool(poolSize = 18): Array<{ number: number; count: number }> {
+export function getRecentTrendPool(
+  excludedNumbers: number[] = [],
+  poolSize = 18
+): Array<{ number: number; count: number }> {
   const stats = getAllNumberStatistics();
+  const excludedSet = new Set(excludedNumbers);
 
-  // 출현 횟수별로 그룹화
   const groupedByCount = new Map<number, number[]>();
   for (const s of stats) {
+    if (excludedSet.has(s.number)) continue; // 제외수 100% 후보군에서 제거
+
     const count = s.recent30;
     if (!groupedByCount.has(count)) {
       groupedByCount.set(count, []);
@@ -31,14 +36,11 @@ export function getRecentTrendPool(poolSize = 18): Array<{ number: number; count
     groupedByCount.get(count)!.push(s.number);
   }
 
-  // 출현 횟수 내림차순 정렬
   const sortedCounts = Array.from(groupedByCount.keys()).sort((a, b) => b - a);
-
   const poolResult: Array<{ number: number; count: number }> = [];
 
   for (const count of sortedCounts) {
     const numsInCount = groupedByCount.get(count)!;
-    // 동률 그룹 무작위 셔플
     const shuffledNums = shuffleArray(numsInCount);
 
     for (const num of shuffledNums) {
@@ -57,16 +59,14 @@ export function getRecentTrendPool(poolSize = 18): Array<{ number: number; count
  */
 function checkRecentTrendConditions(
   analysis: LottoAnalysis,
-  featuredNumbers: number[]
+  featuredNumbers: number[],
+  minFeaturedCount = 2
 ): boolean {
-  // 1. 후보군 포함 개수 최소 2개 이상
-  if (featuredNumbers.length < 2) return false;
+  if (featuredNumbers.length < minFeaturedCount) return false;
 
-  // 2. 최소 2개 이상 구간 사용
   const activeBandsCount = Object.values(analysis.ranges).filter((c) => c > 0).length;
   if (activeBandsCount < 2) return false;
 
-  // 3. 5개 이상 연속수열 금지
   let maxSeq = 1;
   let currSeq = 1;
   for (let i = 1; i < analysis.numbers.length; i++) {
@@ -83,30 +83,43 @@ function checkRecentTrendConditions(
 }
 
 /**
- * 최근흐름형 전략 번호 생성 엔진
+ * 최근흐름형 전략 번호 생성 엔진 (GeneratorOptions 지원 확장)
  */
-export function generateRecentTrendNumbers(maxAttempts = 1000): StrategyGenerationResult {
+export function generateRecentTrendNumbers(
+  options: GeneratorOptions = {},
+  maxAttempts = 1000
+): StrategyGenerationResult {
+  const fixed = options.includeNumbers ?? options.fixedNumbers ?? [];
+  const excluded = options.excludeNumbers ?? options.excludedNumbers ?? [];
   const statsMap = new Map(getAllNumberStatistics().map((s) => [s.number, s]));
+
   let fallbackResult: StrategyGenerationResult | null = null;
 
+  // 고정수를 제외한 남은 자리 수
+  const remainingSpots = Math.max(0, 6 - fixed.length);
+  const targetPickCount = Math.min(remainingSpots, Math.floor(Math.random() * 3) + 2);
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    // 동률 셔플이 반영된 최근 30회 후보군 18개
-    const pool = getRecentTrendPool(18);
+    // 제외수가 무조건 배제된 후보군
+    const pool = getRecentTrendPool(excluded, 18);
     const poolNumbers = pool.map((p) => p.number);
 
-    // 후보군 중 무작위 2~4개 선택
-    const pickCount = Math.floor(Math.random() * 3) + 2; // 2, 3, 4 중 하나
-    const shuffledPool = shuffleArray(poolNumbers);
-    const pickedFromPool = shuffledPool.slice(0, pickCount).sort((a, b) => a - b);
+    // 고정수와 후보군의 중복 제거 후 무작위 추출
+    const availablePool = poolNumbers.filter((n) => !fixed.includes(n));
+    const shuffledPool = shuffleArray(availablePool);
+    const pickedFromPool = shuffledPool.slice(0, targetPickCount);
 
-    // 나머지 번호는 전체 영역에서 중복 없이 생성
+    // 포함수 = 고정수 + 최근흐름 후보 추출수
+    const combinedIncludes = Array.from(new Set([...fixed, ...pickedFromPool]));
+
     const candidateNums = generateRandomNumbers({
-      includeNumbers: pickedFromPool,
+      includeNumbers: combinedIncludes,
+      excludeNumbers: excluded,
     });
 
     const analysis = analyzeLottoNumbers(candidateNums);
 
-    // 실제로 최종 조합에 포함된 후보군 번호들
+    // 최종 조합에 포함된 최근 30회 후보군 번호들
     const actualFeatured = candidateNums.filter((num) => poolNumbers.includes(num));
 
     const featuredStats: StrategyFeaturedStat[] = actualFeatured.map((num) => {
@@ -129,10 +142,14 @@ export function generateRecentTrendNumbers(maxAttempts = 1000): StrategyGenerati
         description: `최근 30회 번호 출현 기록에서 상대적으로 자주 등장한 번호 ${actualFeatured.length}개를 포함해 구성했습니다.`,
         windowSize: 30,
         featuredStats,
+        fixedNumbers: fixed,
+        excludedNumbers: excluded,
+        isRelaxed: false,
       },
     };
 
-    if (checkRecentTrendConditions(analysis, actualFeatured)) {
+    const minFeaturedCount = fixed.length >= 4 ? 1 : 2;
+    if (checkRecentTrendConditions(analysis, actualFeatured, minFeaturedCount)) {
       return currentResult;
     }
 

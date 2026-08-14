@@ -1,9 +1,9 @@
 import { generateRandomNumbers } from "../generator";
 import { analyzeLottoNumbers } from "../analyzer";
-import { LottoAnalysis, StrategyGenerationResult } from "@/types/lotto";
+import { LottoAnalysis, StrategyGenerationResult, GeneratorOptions } from "@/types/lotto";
 
 /**
- * 연속번호 수열의 최대 연속 개수 계산 (예: [1,2,3,10,11] -> 3개 연속)
+ * 연속번호 수열의 최대 연속 개수 계산
  */
 function getMaxConsecutiveSequence(sortedNumbers: number[]): number {
   if (sortedNumbers.length === 0) return 0;
@@ -70,13 +70,19 @@ export function checkBalancedConditions(analysis: LottoAnalysis): {
 }
 
 /**
- * 균형형 번호 생성 엔진
+ * 균형형 번호 생성 엔진 (GeneratorOptions 지원 확장)
  */
-export function generateBalancedNumbers(maxAttempts = 1000): StrategyGenerationResult {
+export function generateBalancedNumbers(
+  options: GeneratorOptions = {},
+  maxAttempts = 1000
+): StrategyGenerationResult {
+  const fixed = options.includeNumbers ?? options.fixedNumbers ?? [];
+  const excluded = options.excludeNumbers ?? options.excludedNumbers ?? [];
+
   let bestCandidate: { numbers: number[]; analysis: LottoAnalysis; score: number } | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const candidateNums = generateRandomNumbers();
+    const candidateNums = generateRandomNumbers(options);
     const analysis = analyzeLottoNumbers(candidateNums);
     const { isBalanced, score } = checkBalancedConditions(analysis);
 
@@ -85,9 +91,12 @@ export function generateBalancedNumbers(maxAttempts = 1000): StrategyGenerationR
       strategyId: "balanced",
       analysis,
       attempts: attempt,
-      featuredNumbers: [],
+      featuredNumbers: fixed,
       metadata: {
         description: "균형형은 홀짝과 저고가 한쪽으로 크게 치우치지 않고, 여러 번호 구간에 분산되도록 조합합니다.",
+        fixedNumbers: fixed,
+        excludedNumbers: excluded,
+        isRelaxed: false,
       },
     };
 
@@ -105,9 +114,12 @@ export function generateBalancedNumbers(maxAttempts = 1000): StrategyGenerationR
     strategyId: "balanced",
     analysis: bestCandidate!.analysis,
     attempts: maxAttempts,
-    featuredNumbers: [],
+    featuredNumbers: fixed,
     metadata: {
-      description: "균형형은 홀짝과 저고가 한쪽으로 크게 치우치지 않고, 여러 번호 구간에 분산되도록 조합합니다.",
+      description: "선택한 조건(고정수/제외수)을 우선해 균형형 방식으로 조합했습니다.",
+      fixedNumbers: fixed,
+      excludedNumbers: excluded,
+      isRelaxed: true,
     },
   };
 }
