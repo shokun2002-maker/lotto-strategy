@@ -46,6 +46,12 @@ export default function NumbersPage() {
 
   const getSourceBadgeText = (item: SavedLottoCombination) => {
     if (item.source === "strategy") {
+      if (item.strategyId === "recent-trend") {
+        return "전략 · 최근흐름형";
+      }
+      if (item.strategyId === "long-absence") {
+        return "전략 · 장기미출현형";
+      }
       return "전략 · 균형형";
     }
     if (item.source === "together") {
@@ -53,6 +59,15 @@ export default function NumbersPage() {
       return `함께추천 ${userPickedCount > 0 ? `· 선택 ${userPickedCount}개` : ""}`;
     }
     return "빠른추천";
+  };
+
+  const getFeaturedBadgeText = (item: SavedLottoCombination) => {
+    if (item.source === "together") return "MY";
+    if (item.source === "strategy") {
+      if (item.strategyId === "recent-trend") return "최근";
+      if (item.strategyId === "long-absence") return "미출현";
+    }
+    return undefined;
   };
 
   return (
@@ -161,9 +176,7 @@ export default function NumbersPage() {
                           number={num}
                           size="md"
                           isUserPick={isUserPick}
-                          badgeText={
-                            isTogether ? (isUserPick ? "MY" : "추천") : undefined
-                          }
+                          badgeText={isUserPick ? getFeaturedBadgeText(item) : undefined}
                         />
                       );
                     })}

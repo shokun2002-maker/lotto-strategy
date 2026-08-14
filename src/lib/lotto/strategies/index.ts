@@ -12,20 +12,18 @@ export const LOTTO_STRATEGIES: LottoStrategyMeta[] = [
   {
     id: "recent-trend",
     name: "최근흐름형",
-    shortDescription: "최근 회차의 번호 출현 데이터를 활용하는 전략",
+    shortDescription: "최근 30회 출현 기록을 참고해 번호를 구성합니다.",
     detailDescription:
-      "최근 회차의 데이터 출현 동향을 파악하여 구성 조건을 조율하는 전략입니다.",
-    status: "preparing",
-    badgeText: "준비 중",
+      "최근 30회 동안 상대적으로 출현 빈도가 높은 번호군 중 일부를 선택하고 나머지는 균형 있게 배치합니다.",
+    status: "active",
   },
   {
     id: "long-absence",
     name: "장기미출현형",
-    shortDescription: "일정 기간 등장하지 않은 번호 데이터를 활용하는 전략",
+    shortDescription: "최근 미출현 기간을 참고해 번호를 구성합니다.",
     detailDescription:
-      "오랫동안 출현하지 않은 번호의 흐름을 반영하여 구성 조건을 조율하는 전략입니다.",
-    status: "preparing",
-    badgeText: "준비 중",
+      "현재 기준 오랫동안 출현하지 않은 번호군 중 일부를 선택하고 나머지는 균형 있게 배치합니다.",
+    status: "active",
   },
 ];
 

@@ -1,4 +1,4 @@
-import { SavedLottoCombination, LottoCombinationSource } from "@/types/lotto";
+import { SavedLottoCombination, LottoCombinationSource, LottoStrategyId } from "@/types/lotto";
 
 const STORAGE_KEY = "lotto-strategy:saved-combinations";
 
@@ -52,6 +52,7 @@ export function isCombinationSaved(numbers: number[]): boolean {
 export function saveCombination(params: {
   numbers: number[];
   source: LottoCombinationSource;
+  strategyId?: LottoStrategyId;
   userPickedNumbers?: number[];
   recommendedNumbers?: number[];
 }): { success: boolean; isDuplicate: boolean; savedItem?: SavedLottoCombination } {
@@ -70,6 +71,7 @@ export function saveCombination(params: {
     id: `combination_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     numbers: sortedNumbers,
     source: params.source,
+    strategyId: params.strategyId,
     userPickedNumbers: userPicked,
     recommendedNumbers: recommended,
     createdAt: new Date().toISOString(),

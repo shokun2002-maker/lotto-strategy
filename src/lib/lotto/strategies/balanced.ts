@@ -1,13 +1,6 @@
 import { generateRandomNumbers } from "../generator";
 import { analyzeLottoNumbers } from "../analyzer";
-import { LottoAnalysis } from "@/types/lotto";
-
-export interface BalancedGenerationResult {
-  numbers: number[];
-  analysis: LottoAnalysis;
-  attempts: number;
-  isBalancedStrict: boolean;
-}
+import { LottoAnalysis, StrategyGenerationResult } from "@/types/lotto";
 
 /**
  * 연속번호 수열의 최대 연속 개수 계산 (예: [1,2,3,10,11] -> 3개 연속)
@@ -79,7 +72,7 @@ export function checkBalancedConditions(analysis: LottoAnalysis): {
 /**
  * 균형형 번호 생성 엔진
  */
-export function generateBalancedNumbers(maxAttempts = 1000): BalancedGenerationResult {
+export function generateBalancedNumbers(maxAttempts = 1000): StrategyGenerationResult {
   let bestCandidate: { numbers: number[]; analysis: LottoAnalysis; score: number } | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -87,26 +80,34 @@ export function generateBalancedNumbers(maxAttempts = 1000): BalancedGenerationR
     const analysis = analyzeLottoNumbers(candidateNums);
     const { isBalanced, score } = checkBalancedConditions(analysis);
 
+    const currentResult: StrategyGenerationResult = {
+      numbers: candidateNums,
+      strategyId: "balanced",
+      analysis,
+      attempts: attempt,
+      featuredNumbers: [],
+      metadata: {
+        description: "균형형은 홀짝과 저고가 한쪽으로 크게 치우치지 않고, 여러 번호 구간에 분산되도록 조합합니다.",
+      },
+    };
+
     if (isBalanced) {
-      return {
-        numbers: candidateNums,
-        analysis,
-        attempts: attempt,
-        isBalancedStrict: true,
-      };
+      return currentResult;
     }
 
-    // 최고 점수 candidate 저장 (fallback 대비)
     if (!bestCandidate || score > bestCandidate.score) {
       bestCandidate = { numbers: candidateNums, analysis, score };
     }
   }
 
-  // Fallback (1000회 내 미발견 시 최고 점수 조합 안전 반환)
   return {
     numbers: bestCandidate!.numbers,
+    strategyId: "balanced",
     analysis: bestCandidate!.analysis,
     attempts: maxAttempts,
-    isBalancedStrict: false,
+    featuredNumbers: [],
+    metadata: {
+      description: "균형형은 홀짝과 저고가 한쪽으로 크게 치우치지 않고, 여러 번호 구간에 분산되도록 조합합니다.",
+    },
   };
 }

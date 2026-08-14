@@ -69,3 +69,22 @@ export interface NumberStatistics {
   lastAppearanceDraw: number | null;
   drawsSinceLastAppearance: number;
 }
+
+export interface StrategyFeaturedStat {
+  number: number;
+  value: number; // 횟수 또는 미출현 회차 수
+  label: string; // 예: "최근 30회 6회 출현", "최근 9회 미출현"
+}
+
+export interface StrategyGenerationResult {
+  numbers: number[];
+  strategyId: LottoStrategyId;
+  analysis: LottoAnalysis;
+  attempts: number;
+  featuredNumbers: number[]; // 전략 특징 후보군에서 선택된 번호들
+  metadata: {
+    description: string;
+    windowSize?: number;
+    featuredStats?: StrategyFeaturedStat[];
+  };
+}
