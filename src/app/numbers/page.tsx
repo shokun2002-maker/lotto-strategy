@@ -7,7 +7,7 @@ import LottoBall from "@/components/lotto/LottoBall";
 import { getSavedCombinations, deleteCombination, clearAllCombinations } from "@/lib/lotto/storage";
 import { SavedLottoCombination } from "@/types/lotto";
 import Link from "next/link";
-import { Trash2, Plus, Sparkles, Hash } from "lucide-react";
+import { Trash2, Plus, Hash } from "lucide-react";
 
 export default function NumbersPage() {
   const [items, setItems] = useState<SavedLottoCombination[]>([]);
@@ -42,6 +42,17 @@ export default function NumbersPage() {
     } catch {
       return isoString;
     }
+  };
+
+  const getSourceBadgeText = (item: SavedLottoCombination) => {
+    if (item.source === "strategy") {
+      return "전략 · 균형형";
+    }
+    if (item.source === "together") {
+      const userPickedCount = item.userPickedNumbers?.length ?? 0;
+      return `함께추천 ${userPickedCount > 0 ? `· 선택 ${userPickedCount}개` : ""}`;
+    }
+    return "빠른추천";
   };
 
   return (
@@ -84,7 +95,7 @@ export default function NumbersPage() {
                 아직 저장한 번호가 없어요
               </h2>
               <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
-                빠른추천이나 함께추천에서 마음에 드는 번호를 저장해보세요.
+                빠른추천이나 함께추천, 전략에서 마음에 드는 번호를 저장해보세요.
               </p>
             </div>
 
@@ -103,7 +114,7 @@ export default function NumbersPage() {
           <section className="space-y-3.5">
             {items.map((item) => {
               const isTogether = item.source === "together";
-              const userPickedCount = item.userPickedNumbers?.length ?? 0;
+              const isStrategy = item.source === "strategy";
 
               return (
                 <div
@@ -115,14 +126,14 @@ export default function NumbersPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                          isTogether
+                          isStrategy
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : isTogether
                             ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                             : "bg-blue-50 text-blue-700 border-blue-200"
                         }`}
                       >
-                        {isTogether
-                          ? `함께추천 ${userPickedCount > 0 ? `· 선택 ${userPickedCount}개` : ""}`
-                          : "빠른추천"}
+                        {getSourceBadgeText(item)}
                       </span>
                       <span className="text-xs text-slate-400 font-medium">
                         {formatDate(item.createdAt)}

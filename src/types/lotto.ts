@@ -29,13 +29,25 @@ export interface LottoAnalysis {
   ranges: LottoRangeDistribution;
 }
 
-export type LottoCombinationSource = "quick" | "together" | "manual";
+export type LottoCombinationSource = "quick" | "together" | "strategy" | "manual";
+
+export type LottoStrategyId = "balanced" | "recent-trend" | "long-absence";
 
 export interface SavedLottoCombination {
   id: string;
   numbers: number[];
   source: LottoCombinationSource;
+  strategyId?: LottoStrategyId;
   userPickedNumbers: number[];
   recommendedNumbers: number[];
   createdAt: string; // ISO String
+}
+
+export interface LottoStrategyMeta {
+  id: LottoStrategyId;
+  name: string;
+  shortDescription: string;
+  detailDescription: string;
+  status: "active" | "preparing";
+  badgeText?: string;
 }
