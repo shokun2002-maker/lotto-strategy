@@ -38,6 +38,7 @@ export interface SavedLottoCombination {
   id: string;
   numbers: number[];
   source: LottoCombinationSource;
+  targetDrawNo?: number; // 대상 추첨 회차 (예: 1237)
   strategyId?: LottoStrategyId;
   customStrategyId?: string;
   customStrategyName?: string;
@@ -176,7 +177,6 @@ export interface StrategyGenerationResult {
   };
 }
 
-// Day 11 백테스트 및 등수 판정 타입
 export type LottoRank = 1 | 2 | 3 | 4 | 5 | null;
 
 export interface LottoMatchResult {
@@ -193,7 +193,7 @@ export interface BacktestRoundResult {
   actualNumbers: number[];
   bonus: number;
   matchResult: LottoMatchResult;
-  contextLatestDrawNo: number; // 시점 누수 방지 검증용 (반드시 drawNo - 1)
+  contextLatestDrawNo: number;
 }
 
 export interface BacktestSummary {

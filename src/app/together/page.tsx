@@ -9,10 +9,13 @@ import AnalysisSummaryCard from "@/components/lotto/AnalysisSummaryCard";
 import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { analyzeLottoNumbers } from "@/lib/lotto/analyzer";
 import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
+import { getNextDrawInfo } from "@/lib/lotto/draw-schedule";
 import { LottoAnalysis } from "@/types/lotto";
 import { RefreshCw, RotateCcw, Info, Sparkles, CheckCircle2, Bookmark, Check } from "lucide-react";
 
 export default function TogetherPage() {
+  const nextDraw = getNextDrawInfo();
+
   // 사용자가 직접 선택한 번호 목록 (0~6개)
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   
@@ -27,12 +30,12 @@ export default function TogetherPage() {
 
   // 번호 변경 시 이미 저장 여부 확인
   useEffect(() => {
-    if (analysis && isCombinationSaved(analysis.numbers)) {
+    if (analysis && isCombinationSaved(analysis.numbers, nextDraw.drawNo)) {
       setSaveStatus("duplicate");
     } else {
       setSaveStatus("idle");
     }
-  }, [analysis?.numbers]);
+  }, [analysis?.numbers, nextDraw.drawNo]);
 
   // 번호 선택/해제 토글
   const handleToggleNumber = (num: number) => {
@@ -84,6 +87,7 @@ export default function TogetherPage() {
     const result = saveCombination({
       numbers: analysis.numbers,
       source: "together",
+      targetDrawNo: nextDraw.drawNo,
       userPickedNumbers: selectedNumbers,
       recommendedNumbers: recommendedNums,
     });
@@ -190,7 +194,7 @@ export default function TogetherPage() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-1.5 text-blue-700 font-extrabold text-sm">
                 <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                <span>함께 완성된 조합</span>
+                <span>제{nextDraw.drawNo}회 완성된 조합</span>
               </div>
 
               {/* Visual Legend */}
@@ -241,7 +245,7 @@ export default function TogetherPage() {
                 {saveStatus === "saved" ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-600" />
-                    <span>✓ 내 번호에 저장했어요</span>
+                    <span>✓ 제{nextDraw.drawNo}회 내 번호에 저장했어요</span>
                   </>
                 ) : saveStatus === "duplicate" ? (
                   <>
@@ -251,7 +255,7 @@ export default function TogetherPage() {
                 ) : (
                   <>
                     <Bookmark className="w-4 h-4 text-blue-600" />
-                    <span>내 번호에 저장</span>
+                    <span>제{nextDraw.drawNo}회 내 번호에 저장</span>
                   </>
                 )}
               </button>

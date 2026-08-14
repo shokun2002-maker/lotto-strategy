@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Sparkles, ArrowLeft } from "lucide-react";
-import { getLatestDraw } from "@/lib/lotto/draw-data";
+import { getNextDrawInfo } from "@/lib/lotto/draw-schedule";
 
 interface HeaderProps {
   roundNumber?: number;
@@ -15,13 +15,14 @@ interface HeaderProps {
 
 export default function Header({
   roundNumber,
-  dDayText = "추첨까지 D-3",
+  dDayText,
   showBackButton = false,
   title,
   backHref = "/",
 }: HeaderProps) {
-  const latest = getLatestDraw();
-  const currentRound = roundNumber ?? (latest ? latest.drawNo : 1236);
+  const nextDraw = getNextDrawInfo();
+  const currentRound = roundNumber ?? nextDraw.drawNo;
+  const currentDDay = dDayText ?? nextDraw.dDayText;
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-100/80 transition-all">
@@ -58,7 +59,7 @@ export default function Header({
           <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
           <span>제 {currentRound}회</span>
           <span className="text-slate-300">•</span>
-          <span className="text-blue-600 font-bold">{dDayText}</span>
+          <span className="text-blue-600 font-bold">{currentDDay}</span>
         </div>
       </div>
     </header>

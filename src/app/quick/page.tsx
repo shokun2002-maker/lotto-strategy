@@ -8,10 +8,13 @@ import AnalysisSummaryCard from "@/components/lotto/AnalysisSummaryCard";
 import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { analyzeLottoNumbers } from "@/lib/lotto/analyzer";
 import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
+import { getNextDrawInfo } from "@/lib/lotto/draw-schedule";
 import { LottoAnalysis } from "@/types/lotto";
 import { RefreshCw, Info, Sparkles, Bookmark, Check } from "lucide-react";
 
 export default function QuickRecommendationPage() {
+  const nextDraw = getNextDrawInfo();
+
   // 초기 페이지 진입 시 자동으로 1개 조합 생성 및 분석
   const [analysis, setAnalysis] = useState<LottoAnalysis>(() => {
     const initialNums = generateRandomNumbers();
@@ -23,12 +26,12 @@ export default function QuickRecommendationPage() {
 
   // 현재 번호가 변경되면 이미 저장된 번호인지 확인하여 상태 동기화
   useEffect(() => {
-    if (isCombinationSaved(analysis.numbers)) {
+    if (isCombinationSaved(analysis.numbers, nextDraw.drawNo)) {
       setSaveStatus("duplicate");
     } else {
       setSaveStatus("idle");
     }
-  }, [analysis.numbers]);
+  }, [analysis.numbers, nextDraw.drawNo]);
 
   const handleGenerate = () => {
     setIsGenerating(true);
@@ -47,6 +50,7 @@ export default function QuickRecommendationPage() {
     const result = saveCombination({
       numbers: analysis.numbers,
       source: "quick",
+      targetDrawNo: nextDraw.drawNo,
     });
 
     if (result.success) {
@@ -79,7 +83,7 @@ export default function QuickRecommendationPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              추천 번호 조합
+              제{nextDraw.drawNo}회 추천 번호
             </span>
             <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
               자동 생성을 완료했습니다
@@ -125,7 +129,7 @@ export default function QuickRecommendationPage() {
               {saveStatus === "saved" ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-600" />
-                  <span>✓ 내 번호에 저장했어요</span>
+                  <span>✓ 제{nextDraw.drawNo}회 내 번호에 저장했어요</span>
                 </>
               ) : saveStatus === "duplicate" ? (
                 <>
@@ -135,7 +139,7 @@ export default function QuickRecommendationPage() {
               ) : (
                 <>
                   <Bookmark className="w-4 h-4 text-slate-500" />
-                  <span>내 번호에 저장</span>
+                  <span>제{nextDraw.drawNo}회 내 번호에 저장</span>
                 </>
               )}
             </button>

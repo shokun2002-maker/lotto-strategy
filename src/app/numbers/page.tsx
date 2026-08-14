@@ -5,15 +5,19 @@ import Header from "@/components/common/Header";
 import BottomNavigation from "@/components/common/BottomNavigation";
 import LottoBall from "@/components/lotto/LottoBall";
 import { getSavedCombinations, deleteCombination, clearAllCombinations } from "@/lib/lotto/storage";
+import { getNextDrawInfo, addDaysToDate } from "@/lib/lotto/draw-schedule";
+import { getSavedCombinationResult } from "@/lib/lotto/saved-result";
+import { getDrawByNumber } from "@/lib/lotto/draw-data";
 import { SavedLottoCombination } from "@/types/lotto";
 import Link from "next/link";
-import { Trash2, Plus, Hash } from "lucide-react";
+import { Trash2, Plus, Hash, Calendar, CheckCircle2, Clock, Zap, Sliders } from "lucide-react";
 
 export default function NumbersPage() {
   const [items, setItems] = useState<SavedLottoCombination[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Client-side hydration safety
+  const nextDraw = getNextDrawInfo();
+
   useEffect(() => {
     setItems(getSavedCombinations());
     setIsLoaded(true);
@@ -87,6 +91,26 @@ export default function NumbersPage() {
     return undefined;
   };
 
+  // 회차별 그룹화 처리 (targetDrawNo 오름차순/내림차순 정렬)
+  const groupedByDraw: Map<number | "unspecified", SavedLottoCombination[]> = new Map();
+
+  for (const item of items) {
+    const key = item.targetDrawNo ?? "unspecified";
+    if (!groupedByDraw.has(key)) {
+      groupedByDraw.set(key, []);
+    }
+    groupedByDraw.get(key)!.push(item);
+  }
+
+  // 그룹 키 정렬 (숫자 내림차순, unspecified는 맨 뒤)
+  const sortedGroupKeys = Array.from(groupedByDraw.keys()).sort((a, b) => {
+    if (a === "unspecified") return 1;
+    if (b === "unspecified") return -1;
+    return (b as number) - (a as number);
+  });
+
+  const nextDrawItems = groupedByDraw.get(nextDraw.drawNo) ?? [];
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pb-24">
       {/* Header */}
@@ -97,26 +121,28 @@ export default function NumbersPage() {
         <section className="space-y-1.5 pt-1">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight tracking-tight">
-              내 번호
+              이번 주 번호를
+              <br />
+              <span className="text-blue-600">한곳에서 확인하세요</span>
             </h1>
             {isLoaded && items.length > 0 && (
               <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                저장된 번호 {items.length}개
+                총 {items.length}게임 저장됨
               </span>
             )}
           </div>
           <p className="text-sm font-medium text-slate-500">
-            저장한 번호를 한곳에서 확인하세요.
+            추첨 회차별로 저장한 번호와 대조 결과를 확인할 수 있습니다.
           </p>
         </section>
 
-        {/* Loading Skeleton during hydration */}
+        {/* Loading Skeleton */}
         {!isLoaded ? (
           <div className="w-full bg-white rounded-2xl p-6 border border-slate-200/80 animate-pulse text-center text-slate-400 text-sm">
             저장한 번호를 불러오는 중...
           </div>
         ) : items.length === 0 ? (
-          /* Empty State */
+          /* Entire Empty State */
           <section className="w-full bg-white rounded-2xl p-8 border border-slate-200/80 shadow-xs flex flex-col items-center justify-center text-center space-y-4 my-4">
             <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
               <Hash className="w-7 h-7 stroke-[1.8]" />
@@ -127,76 +153,235 @@ export default function NumbersPage() {
                 아직 저장한 번호가 없어요
               </h2>
               <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
-                빠른추천이나 함께추천, 전략에서 마음에 드는 번호를 저장해보세요.
+                빠른추천이나 함께추천, 전략에서 번호를 만들어 제{nextDraw.drawNo}회에 저장해보세요.
               </p>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-2">
               <Link
                 href="/quick"
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm"
               >
-                <Plus className="w-4 h-4" />
-                <span>번호 만들어보기</span>
+                <Zap className="w-4 h-4" />
+                <span>빠른추천</span>
+              </Link>
+              <Link
+                href="/strategy"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm"
+              >
+                <Sliders className="w-4 h-4" />
+                <span>전략만들기</span>
               </Link>
             </div>
           </section>
         ) : (
-          /* Saved Combination List */
-          <section className="space-y-3.5">
-            {items.map((item) => {
-              const isTogether = item.source === "together";
-              const isStrategy = item.source === "strategy";
+          <section className="space-y-6">
+            {/* Current Target Draw (제1237회) Empty Warning Banner if empty for current draw */}
+            {nextDrawItems.length === 0 && (
+              <div className="w-full bg-white rounded-2xl p-5 border border-blue-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-blue-700 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    제{nextDraw.drawNo}회 ({nextDraw.formattedDate} 추첨)
+                  </span>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                    {nextDraw.dDayText}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 font-bold">
+                  이번 제{nextDraw.drawNo}회차에 저장한 번호가 없어요.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <Link
+                    href="/quick"
+                    className="flex-1 h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1"
+                  >
+                    <span>빠른추천으로 만들기</span>
+                  </Link>
+                  <Link
+                    href="/strategy"
+                    className="flex-1 h-9 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1"
+                  >
+                    <span>전략으로 만들기</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Draw Groups List */}
+            {sortedGroupKeys.map((groupKey) => {
+              const groupItems = groupedByDraw.get(groupKey)!;
+              // 회차 내에서 createdAt 오름차순 (저장 순서대로 GAME 1, GAME 2) 정렬
+              const sortedInGroup = [...groupItems].sort(
+                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              );
+
+              const isUnspecified = groupKey === "unspecified";
+              const drawNo = isUnspecified ? undefined : (groupKey as number);
+              const actualDraw = drawNo ? getDrawByNumber(drawNo) : undefined;
+              const isCompleted = !!actualDraw;
+
+              // 회차 날짜 구하기
+              let drawDateStr = "";
+              if (actualDraw) {
+                drawDateStr = actualDraw.drawDate.replace(/-/g, ".");
+              } else if (drawNo === nextDraw.drawNo) {
+                drawDateStr = `${nextDraw.formattedDate} 추첨 예정`;
+              } else if (drawNo) {
+                drawDateStr = "추첨 예정";
+              }
 
               return (
-                <div
-                  key={item.id}
-                  className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-4 hover:border-slate-300 transition-all"
-                >
-                  {/* Card Header Info */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div key={String(groupKey)} className="space-y-3">
+                  {/* Group Header */}
+                  <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                          isStrategy
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : isTogether
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                            : "bg-blue-50 text-blue-700 border-blue-200"
-                        }`}
-                      >
-                        {getSourceBadgeText(item)}
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        {formatDate(item.createdAt)}
-                      </span>
+                      <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-blue-600" />
+                        {isUnspecified ? "회차 미지정" : `제${drawNo}회`}
+                      </h2>
+                      {drawDateStr && (
+                        <span className="text-xs text-slate-400 font-semibold">
+                          ({drawDateStr})
+                        </span>
+                      )}
                     </div>
 
-                    {/* Delete Item Button */}
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                      aria-label="저장된 조합 삭제"
-                      title="조합 삭제"
+                    <span
+                      className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                        isCompleted
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : isUnspecified
+                          ? "bg-slate-100 text-slate-500 border-slate-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      {isCompleted ? "추첨 완료" : isUnspecified ? "미지정" : "추첨 전"}
+                    </span>
                   </div>
 
-                  {/* 6 Lotto Balls Grid */}
-                  <div className="flex items-center justify-between gap-1 sm:gap-2 py-1">
-                    {item.numbers.map((num) => {
-                      const isUserPick =
-                        item.userPickedNumbers?.includes(num) ||
-                        item.fixedNumbers?.includes(num);
+                  {/* Draw Winning Numbers Header if completed */}
+                  {actualDraw && (
+                    <div className="w-full bg-slate-900 text-white rounded-xl p-3.5 text-xs font-semibold flex items-center justify-between shadow-xs">
+                      <span className="text-slate-300 font-bold">당첨번호:</span>
+                      <div className="flex items-center gap-1 font-black">
+                        {actualDraw.numbers.map((n) => (
+                          <span key={n} className="bg-slate-800 px-1.5 py-0.5 rounded text-amber-400">
+                            {n < 10 ? `0${n}` : n}
+                          </span>
+                        ))}
+                        <span className="text-slate-500 mx-0.5">+</span>
+                        <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">
+                          {actualDraw.bonus}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Combination Cards in Group */}
+                  <div className="space-y-3">
+                    {sortedInGroup.map((item, idx) => {
+                      const result = getSavedCombinationResult(item);
+                      const isStrategy = item.source === "strategy";
+                      const isTogether = item.source === "together";
+
                       return (
-                        <LottoBall
-                          key={num}
-                          number={num}
-                          size="md"
-                          isUserPick={isUserPick}
-                          badgeText={getFeaturedBadgeText(item, num)}
-                        />
+                        <div
+                          key={item.id}
+                          className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3.5 hover:border-slate-300 transition-all"
+                        >
+                          {/* Item Header */}
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-900">
+                                GAME {idx + 1}
+                              </span>
+                              <span
+                                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                  isStrategy
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : isTogether
+                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                                }`}
+                              >
+                                {getSourceBadgeText(item)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {/* Result Status Badge */}
+                              {result.status === "completed" && result.match ? (
+                                <span
+                                  className={`text-xs font-black px-2.5 py-0.5 rounded-md ${
+                                    result.match.rank === 1
+                                      ? "bg-amber-500 text-white"
+                                      : result.match.rank === 2
+                                      ? "bg-blue-600 text-white"
+                                      : result.match.rank === 3
+                                      ? "bg-indigo-600 text-white"
+                                      : result.match.rank === 4
+                                      ? "bg-emerald-600 text-white"
+                                      : result.match.rank === 5
+                                      ? "bg-teal-600 text-white"
+                                      : "bg-slate-100 text-slate-600 font-bold"
+                                  }`}
+                                >
+                                  {result.match.rank
+                                    ? `${result.match.rank}등 당첨`
+                                    : result.match.matchCount > 0
+                                    ? `${result.match.matchCount}개 일치`
+                                    : "당첨 없음"}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  결과 대기
+                                </span>
+                              )}
+
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="조합 삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 6 Lotto Balls Grid */}
+                          <div className="flex items-center justify-between gap-1 sm:gap-2 py-1">
+                            {item.numbers.map((num) => {
+                              const isMatched =
+                                result.status === "completed" &&
+                                result.match?.matchedNumbers.includes(num);
+                              const isBonusMatched =
+                                result.status === "completed" &&
+                                result.draw?.bonus === num;
+
+                              const isUserPick =
+                                item.userPickedNumbers?.includes(num) ||
+                                item.fixedNumbers?.includes(num);
+
+                              return (
+                                <LottoBall
+                                  key={num}
+                                  number={num}
+                                  size="md"
+                                  isUserPick={isUserPick || isMatched}
+                                  badgeText={
+                                    isBonusMatched
+                                      ? "보너스"
+                                      : isUserPick
+                                      ? getFeaturedBadgeText(item, num)
+                                      : undefined
+                                  }
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
