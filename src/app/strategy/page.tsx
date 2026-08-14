@@ -21,11 +21,13 @@ import {
   deleteStrategy,
   incrementStrategyUsage,
 } from "@/lib/lotto/strategy-storage";
+import { runStrategyBacktest } from "@/lib/lotto/backtest";
 import { getLatestDraw, getAllDraws } from "@/lib/lotto/draw-data";
 import {
   StrategyGenerationResult,
   LottoStrategyId,
   SavedCustomStrategy,
+  BacktestSummary,
 } from "@/types/lotto";
 import {
   Sliders,
@@ -48,6 +50,9 @@ import {
   Trash2,
   Edit3,
   Dices,
+  History,
+  Play,
+  Trophy,
 } from "lucide-react";
 
 export default function StrategyPage() {
@@ -77,6 +82,12 @@ export default function StrategyPage() {
   const [excludedNumbers, setExcludedNumbers] = useState<number[]>([]);
   const [customBaseStrategy, setCustomBaseStrategy] = useState<LottoStrategyId>("balanced");
 
+  // 백테스트 상태
+  const [showBacktestSection, setShowBacktestSection] = useState(false);
+  const [backtestStrategyId, setBacktestStrategyId] = useState<LottoStrategyId>("balanced");
+  const [backtestSummary, setBacktestSummary] = useState<BacktestSummary | null>(null);
+  const [isRunningBacktest, setIsRunningBacktest] = useState(false);
+
   // 피드백 알림 상태
   const [strategyFormNotice, setStrategyFormNotice] = useState<{
     type: "success" | "error";
@@ -86,11 +97,22 @@ export default function StrategyPage() {
   const latestDraw = getLatestDraw();
   const totalDrawCount = getAllDraws().length;
 
-  // Client-side hydration
   useEffect(() => {
     setSavedStrategies(getSavedStrategies());
     setIsStorageLoaded(true);
   }, []);
+
+  // 백테스트 실행 핸들러
+  const handleRunBacktest = (strategyId: LottoStrategyId) => {
+    setBacktestStrategyId(strategyId);
+    setIsRunningBacktest(true);
+
+    setTimeout(() => {
+      const summary = runStrategyBacktest(strategyId, { count: 100 });
+      setBacktestSummary(summary);
+      setIsRunningBacktest(false);
+    }, 200);
+  };
 
   // 기본 3개 전략 즉시 생성
   const handleGenerateStrategy = (strategyId: LottoStrategyId) => {
@@ -117,7 +139,7 @@ export default function StrategyPage() {
     }, 150);
   };
 
-  // 나만의 전략 번호 일회성 만들기 (미저장 상태에서 즉시 생성)
+  // 나만의 전략 번호 일회성 만들기
   const handleGenerateCustomOnce = () => {
     setIsGenerating(true);
     setBatchSaveStatus(null);
@@ -138,7 +160,7 @@ export default function StrategyPage() {
     }, 150);
   };
 
-  // 전략 저장 버튼 핸들러 (내 전략으로 저장)
+  // 전략 저장 버튼 핸들러
   const handleSaveStrategyForm = (e: React.FormEvent) => {
     e.preventDefault();
     setStrategyFormNotice(null);
@@ -158,7 +180,6 @@ export default function StrategyPage() {
         text: editingStrategyId ? "✓ 전략이 수정되었어요." : "✓ 나만의 전략을 저장했어요.",
       });
 
-      // 폼 리셋
       setEditingStrategyId(null);
       setStrategyNameInput("");
       setFixedNumbers([]);
@@ -171,7 +192,6 @@ export default function StrategyPage() {
     }
   };
 
-  // 저장된 전략 수정 버튼 클릭 시 폼으로 로드
   const handleEditSavedStrategy = (st: SavedCustomStrategy) => {
     setShowCustomSection(true);
     setEditingStrategyId(st.id);
@@ -183,7 +203,6 @@ export default function StrategyPage() {
     window.scrollTo({ top: 250, behavior: "smooth" });
   };
 
-  // 저장된 전략 삭제
   const handleDeleteSavedStrategy = (id: string, name: string) => {
     if (window.confirm(`"${name}" 전략을 삭제할까요?`)) {
       const updated = deleteStrategy(id);
@@ -191,7 +210,6 @@ export default function StrategyPage() {
     }
   };
 
-  // 저장된 전략 카드에서 1게임 / 3게임 / 5게임 바로 생성
   const handleGenerateFromSavedStrategy = (
     st: SavedCustomStrategy,
     count: 1 | 3 | 5
@@ -199,7 +217,6 @@ export default function StrategyPage() {
     setIsGenerating(true);
     setBatchSaveStatus(null);
 
-    // usageCount +1 갱신
     incrementStrategyUsage(st.id);
     setSavedStrategies(getSavedStrategies());
 
@@ -213,7 +230,6 @@ export default function StrategyPage() {
         count
       );
 
-      // 메타데이터에 커스텀 전략 정보 주입
       const enriched = generatedList.map((res) => ({
         ...res,
         metadata: {
@@ -231,7 +247,6 @@ export default function StrategyPage() {
     }, 150);
   };
 
-  // 결과 생성된 모든 게임 내 번호에 일괄 저장
   const handleSaveAllResultsToMyNumbers = () => {
     if (results.length === 0) return;
 
@@ -342,7 +357,7 @@ export default function StrategyPage() {
           </section>
         )}
 
-        {/* Saved Strategy List Section (내 전략) */}
+        {/* Saved Strategy List Section */}
         <section className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -369,7 +384,6 @@ export default function StrategyPage() {
                   key={st.id}
                   className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 hover:border-blue-300 transition-all shadow-xs space-y-3.5"
                 >
-                  {/* Card Top Header */}
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
@@ -381,7 +395,6 @@ export default function StrategyPage() {
                         </span>
                       </div>
 
-                      {/* Fixed & Excluded Info Chips */}
                       <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-1.5">
                         <span className="flex items-center gap-1 text-blue-700 font-bold">
                           <Pin className="w-3 h-3" />
@@ -395,7 +408,6 @@ export default function StrategyPage() {
                       </div>
                     </div>
 
-                    {/* Manage Buttons: Edit / Delete */}
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEditSavedStrategy(st)}
@@ -414,7 +426,6 @@ export default function StrategyPage() {
                     </div>
                   </div>
 
-                  {/* 1game / 3game / 5game Quick Generate Buttons */}
                   <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2">
                     <button
                       onClick={() => handleGenerateFromSavedStrategy(st, 1)}
@@ -447,7 +458,7 @@ export default function StrategyPage() {
           )}
         </section>
 
-        {/* Custom Strategy Form Accordion Card (나만의 맞춤 전략 만들기) */}
+        {/* Custom Strategy Form Accordion Card */}
         <section className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <button
             onClick={() => setShowCustomSection(!showCustomSection)}
@@ -479,7 +490,6 @@ export default function StrategyPage() {
 
           {showCustomSection && (
             <form onSubmit={handleSaveStrategyForm} className="p-5 pt-2 border-t border-slate-100 space-y-5 bg-slate-50/50">
-              {/* Form Feedback Notice */}
               {strategyFormNotice && (
                 <div
                   className={`p-3 rounded-xl text-xs font-bold flex items-center gap-1.5 ${
@@ -493,7 +503,6 @@ export default function StrategyPage() {
                 </div>
               )}
 
-              {/* 1. Strategy Name Input Field */}
               <div className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-2">
                 <label className="text-xs font-extrabold text-slate-700 block">
                   1. 전략 이름 (필수)
@@ -508,7 +517,6 @@ export default function StrategyPage() {
                 />
               </div>
 
-              {/* 2. Custom Number Selector (Fixed & Excluded) */}
               <CustomNumberSelector
                 fixedNumbers={fixedNumbers}
                 excludedNumbers={excludedNumbers}
@@ -516,7 +524,6 @@ export default function StrategyPage() {
                 onChangeExcluded={setExcludedNumbers}
               />
 
-              {/* 3. Base Strategy Choice */}
               <div className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3">
                 <span className="text-xs font-extrabold text-slate-700 block">
                   3. 나머지 번호를 구성할 기본 전략 방식
@@ -546,7 +553,6 @@ export default function StrategyPage() {
                 </div>
               </div>
 
-              {/* Action Buttons: Save Strategy & One-off Generate */}
               <div className="grid grid-cols-2 gap-2.5 pt-1">
                 <button
                   type="submit"
@@ -632,7 +638,6 @@ export default function StrategyPage() {
         {/* Strategy Generation Results Display Section */}
         {results.length > 0 && (
           <section className="w-full bg-white rounded-2xl p-5 border border-blue-200 shadow-md shadow-blue-500/5 space-y-5 transition-all animate-fadeIn">
-            {/* Header Status */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-1.5 text-blue-700 font-extrabold text-sm">
                 <CheckCircle2 className="w-4 h-4 text-blue-600" />
@@ -643,7 +648,6 @@ export default function StrategyPage() {
               </span>
             </div>
 
-            {/* Generated Games List */}
             <div className="space-y-4">
               {results.map((res, idx) => (
                 <div key={idx} className="space-y-2 p-3 rounded-xl bg-slate-50/80 border border-slate-200/60">
@@ -654,7 +658,6 @@ export default function StrategyPage() {
                     </span>
                   </div>
 
-                  {/* 6 Lotto Balls Grid */}
                   <div className="flex items-center justify-between gap-1 sm:gap-2 py-1">
                     {res.numbers.map((num) => {
                       const isFixed = res.metadata.fixedNumbers?.includes(num);
@@ -673,7 +676,6 @@ export default function StrategyPage() {
               ))}
             </div>
 
-            {/* Batch Save Feedback Notice */}
             {batchSaveStatus && (
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center gap-1.5">
                 <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -681,7 +683,6 @@ export default function StrategyPage() {
               </div>
             )}
 
-            {/* Action Buttons: Batch Save All */}
             <div className="pt-1">
               <button
                 onClick={handleSaveAllResultsToMyNumbers}
@@ -692,7 +693,6 @@ export default function StrategyPage() {
               </button>
             </div>
 
-            {/* Analysis Summary for 1st Game */}
             {results[0] && (
               <div className="pt-2 border-t border-slate-100">
                 <AnalysisSummaryCard analysis={results[0].analysis} title="GAME 1 분석 결과" />
@@ -701,11 +701,198 @@ export default function StrategyPage() {
           </section>
         )}
 
+        {/* Day 11 Backtest Section (과거 시뮬레이션 백테스트) */}
+        <section className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <button
+            onClick={() => setShowBacktestSection(!showBacktestSection)}
+            className="w-full p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/80 shrink-0">
+                <History className="w-5 h-5 stroke-[2]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                    과거 시뮬레이션 (백테스트)
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-extrabold">
+                    최근 100회
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  각 회차 직전 과거 데이터만을 사용해 시뮬레이션합니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-slate-400">
+              {showBacktestSection ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </div>
+          </button>
+
+          {showBacktestSection && (
+            <div className="p-5 pt-2 border-t border-slate-100 space-y-5 bg-slate-50/50">
+              {/* Strategy Choice for Backtest */}
+              <div className="w-full bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+                <span className="text-xs font-extrabold text-slate-700 block">
+                  시뮬레이션할 전략 선택
+                </span>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {LOTTO_STRATEGIES.map((st) => {
+                    const isSelected = backtestStrategyId === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setBacktestStrategyId(st.id)}
+                        className={`
+                          py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer flex flex-col items-center justify-center gap-1
+                          ${
+                            isSelected
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-2xs"
+                              : "bg-slate-50 text-slate-600 border-slate-200/70 hover:bg-slate-100"
+                          }
+                        `}
+                      >
+                        <span>{st.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    onClick={() => handleRunBacktest(backtestStrategyId)}
+                    disabled={isRunningBacktest}
+                    className="w-full h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-70"
+                  >
+                    <Play className={`w-3.5 h-3.5 ${isRunningBacktest ? "animate-spin" : ""}`} />
+                    <span>{isRunningBacktest ? "시뮬레이션 계산 중..." : `${getStrategyNameText(backtestStrategyId)} 최근 100회 시뮬레이션 실행`}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Backtest Summary Display */}
+              {backtestSummary && (
+                <div className="w-full bg-white rounded-2xl p-5 border border-indigo-200 shadow-sm space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-indigo-900 font-extrabold text-base">
+                        <Trophy className="w-4 h-4 text-indigo-600" />
+                        <span>{backtestSummary.strategyName} 과거 시뮬레이션 결과</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                        제{backtestSummary.startDrawNo}회 ~ 제{backtestSummary.endDrawNo}회 (총 {backtestSummary.testedDraws}게임)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Rank Counts Grid */}
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                      <span className="text-[10px] font-bold text-amber-700 block">1등 (6개)</span>
+                      <span className="font-black text-amber-900 text-sm">{backtestSummary.rankCounts.first}회</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200">
+                      <span className="text-[10px] font-bold text-blue-700 block">2등 (5+보너스)</span>
+                      <span className="font-black text-blue-900 text-sm">{backtestSummary.rankCounts.second}회</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                      <span className="text-[10px] font-bold text-indigo-700 block">3등 (5개)</span>
+                      <span className="font-black text-indigo-900 text-sm">{backtestSummary.rankCounts.third}회</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-[10px] font-bold text-emerald-700 block">4등 (4개)</span>
+                      <span className="font-black text-emerald-900 text-sm">{backtestSummary.rankCounts.fourth}회</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200">
+                      <span className="text-[10px] font-bold text-teal-700 block">5등 (3개)</span>
+                      <span className="font-black text-teal-900 text-sm">{backtestSummary.rankCounts.fifth}회</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 block">낙첨</span>
+                      <span className="font-black text-slate-700 text-sm">{backtestSummary.rankCounts.noPrize}회</span>
+                    </div>
+                  </div>
+
+                  {/* Average Match Metric */}
+                  <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between text-xs">
+                    <span className="font-bold text-indigo-900">평균 번호 일치 수</span>
+                    <span className="text-base font-black text-indigo-700">{backtestSummary.averageMatchCount}개</span>
+                  </div>
+
+                  {/* Recent 5 Rounds Sample List */}
+                  <div className="space-y-2 pt-1">
+                    <span className="text-xs font-extrabold text-slate-700 block">최근 5개 회차 시뮬레이션 명세</span>
+                    <div className="space-y-2">
+                      {backtestSummary.rounds.slice(-5).reverse().map((rd) => (
+                        <div key={rd.drawNo} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-slate-900">제{rd.drawNo}회 ({rd.drawDate})</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              rd.matchResult.rank === 1 ? "bg-amber-100 text-amber-800" :
+                              rd.matchResult.rank === 2 ? "bg-blue-100 text-blue-800" :
+                              rd.matchResult.rank === 3 ? "bg-indigo-100 text-indigo-800" :
+                              rd.matchResult.rank === 4 ? "bg-emerald-100 text-emerald-800" :
+                              rd.matchResult.rank === 5 ? "bg-teal-100 text-teal-800" :
+                              "bg-slate-200 text-slate-600"
+                            }`}>
+                              {rd.matchResult.rank ? `${rd.matchResult.rank}등` : "낙첨"}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 text-[11px] font-semibold">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-400 w-12 shrink-0">생성 번호:</span>
+                              <div className="flex items-center gap-1">
+                                {rd.generatedNumbers.map((n) => {
+                                  const isMatched = rd.matchResult.matchedNumbers.includes(n);
+                                  return (
+                                    <span
+                                      key={n}
+                                      className={`px-1.5 py-0.5 rounded ${
+                                        isMatched
+                                          ? "bg-indigo-600 text-white font-extrabold"
+                                          : "bg-white text-slate-700 border border-slate-200"
+                                      }`}
+                                    >
+                                      {n < 10 ? `0${n}` : n}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-slate-500">
+                              <span className="text-slate-400 w-12 shrink-0">실제 당첨:</span>
+                              <span>{rd.actualNumbers.map((n) => (n < 10 ? `0${n}` : n)).join(" · ")}</span>
+                              <span className="text-slate-300">+</span>
+                              <span className="text-indigo-600 font-bold">{rd.bonus}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Caution Notes */}
+                  <div className="p-3 rounded-xl bg-slate-100/80 text-[11px] text-slate-500 leading-relaxed font-medium space-y-1">
+                    <p className="font-bold text-slate-700">• 각 회차 시뮬레이션은 해당 회차 직전까지의 과거 데이터만 사용합니다.</p>
+                    <p>• 번호 생성 과정에 무작위 요소가 포함되어 실행할 때마다 결과가 다를 수 있습니다.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         {/* Disclaimer Note */}
         <section className="w-full bg-slate-100/70 border border-slate-200/60 rounded-xl p-3.5 flex items-start gap-2.5 text-slate-500 text-xs">
           <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed font-medium">
-            과거 출현 기록을 활용한 번호 구성 방식이며 미래 추첨 결과를 예측하거나 보장하지 않습니다.
+            과거 시뮬레이션 및 과거 출현 기록은 참고용이며 미래 추첨 결과나 당첨 가능성을 예측하거나 보장하지 않습니다.
           </p>
         </section>
       </main>

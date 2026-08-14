@@ -8,6 +8,7 @@ export interface GeneratorOptions {
   fixedNumbers?: number[]; // includeNumbers의 하위 호환
   excludeNumbers?: number[]; // 제외수 (0~5개)
   excludedNumbers?: number[]; // excludeNumbers의 하위 호환
+  drawsContext?: LottoDraw[]; // 백테스트 시점 데이터 누수 차단용 과거 회차 context
 }
 
 export interface LottoRangeDistribution {
@@ -92,7 +93,7 @@ export interface UserLottoProfile {
     hasData: boolean;
     items: Array<{
       rangeKey: string;
-      label: string; // "1~10", "11~20" 등
+      label: string;
       count: number;
       percentage: number;
     }>;
@@ -146,14 +147,15 @@ export interface NumberStatistics {
 
 export interface StrategyFeaturedStat {
   number: number;
-  value: number; // 횟수 또는 미출현 회차 수
-  label: string; // 예: "최근 30회 6회 출현", "최근 9회 미출현"
+  value: number;
+  label: string;
 }
 
 export interface CustomStrategyOptions {
   baseStrategy: LottoStrategyId;
   fixedNumbers: number[];
   excludedNumbers: number[];
+  drawsContext?: LottoDraw[];
 }
 
 export interface StrategyGenerationResult {
@@ -161,7 +163,7 @@ export interface StrategyGenerationResult {
   strategyId: LottoStrategyId;
   analysis: LottoAnalysis;
   attempts: number;
-  featuredNumbers: number[]; // 전략 특징 및 고정수에서 선택된 번호들
+  featuredNumbers: number[];
   metadata: {
     description: string;
     windowSize?: number;
@@ -172,4 +174,42 @@ export interface StrategyGenerationResult {
     customStrategyId?: string;
     customStrategyName?: string;
   };
+}
+
+// Day 11 백테스트 및 등수 판정 타입
+export type LottoRank = 1 | 2 | 3 | 4 | 5 | null;
+
+export interface LottoMatchResult {
+  matchedNumbers: number[];
+  matchCount: number;
+  bonusMatched: boolean;
+  rank: LottoRank;
+}
+
+export interface BacktestRoundResult {
+  drawNo: number;
+  drawDate: string;
+  generatedNumbers: number[];
+  actualNumbers: number[];
+  bonus: number;
+  matchResult: LottoMatchResult;
+  contextLatestDrawNo: number; // 시점 누수 방지 검증용 (반드시 drawNo - 1)
+}
+
+export interface BacktestSummary {
+  strategyId: LottoStrategyId;
+  strategyName: string;
+  testedDraws: number;
+  startDrawNo: number;
+  endDrawNo: number;
+  rankCounts: {
+    first: number;
+    second: number;
+    third: number;
+    fourth: number;
+    fifth: number;
+    noPrize: number;
+  };
+  averageMatchCount: number;
+  rounds: BacktestRoundResult[];
 }

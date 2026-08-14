@@ -1,7 +1,7 @@
 import { generateRandomNumbers } from "../generator";
 import { analyzeLottoNumbers } from "../analyzer";
 import { getAllNumberStatistics } from "../statistics";
-import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis, GeneratorOptions } from "@/types/lotto";
+import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis, GeneratorOptions, LottoDraw } from "@/types/lotto";
 
 /**
  * 배열 요소 무작위 셔플 (Fisher-Yates Shuffle)
@@ -16,18 +16,19 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * 최근 30회 출현 횟수 기준 후보군 18개 산출 (제외수 필터링 & 동률 셔플 적용)
+ * 최근 30회 출현 횟수 기준 후보군 18개 산출 (drawsContext 지원)
  */
 export function getRecentTrendPool(
   excludedNumbers: number[] = [],
-  poolSize = 18
+  poolSize = 18,
+  drawsContext?: LottoDraw[]
 ): Array<{ number: number; count: number }> {
-  const stats = getAllNumberStatistics();
+  const stats = getAllNumberStatistics(drawsContext);
   const excludedSet = new Set(excludedNumbers);
 
   const groupedByCount = new Map<number, number[]>();
   for (const s of stats) {
-    if (excludedSet.has(s.number)) continue; // 제외수 100% 후보군에서 제거
+    if (excludedSet.has(s.number)) continue;
 
     const count = s.recent30;
     if (!groupedByCount.has(count)) {
@@ -83,7 +84,7 @@ function checkRecentTrendConditions(
 }
 
 /**
- * 최근흐름형 전략 번호 생성 엔진 (GeneratorOptions 지원 확장)
+ * 최근흐름형 전략 번호 생성 엔진 (drawsContext 지원)
  */
 export function generateRecentTrendNumbers(
   options: GeneratorOptions = {},
@@ -91,25 +92,22 @@ export function generateRecentTrendNumbers(
 ): StrategyGenerationResult {
   const fixed = options.includeNumbers ?? options.fixedNumbers ?? [];
   const excluded = options.excludeNumbers ?? options.excludedNumbers ?? [];
-  const statsMap = new Map(getAllNumberStatistics().map((s) => [s.number, s]));
+  const drawsContext = options.drawsContext;
 
+  const statsMap = new Map(getAllNumberStatistics(drawsContext).map((s) => [s.number, s]));
   let fallbackResult: StrategyGenerationResult | null = null;
 
-  // 고정수를 제외한 남은 자리 수
   const remainingSpots = Math.max(0, 6 - fixed.length);
   const targetPickCount = Math.min(remainingSpots, Math.floor(Math.random() * 3) + 2);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    // 제외수가 무조건 배제된 후보군
-    const pool = getRecentTrendPool(excluded, 18);
+    const pool = getRecentTrendPool(excluded, 18, drawsContext);
     const poolNumbers = pool.map((p) => p.number);
 
-    // 고정수와 후보군의 중복 제거 후 무작위 추출
     const availablePool = poolNumbers.filter((n) => !fixed.includes(n));
     const shuffledPool = shuffleArray(availablePool);
     const pickedFromPool = shuffledPool.slice(0, targetPickCount);
 
-    // 포함수 = 고정수 + 최근흐름 후보 추출수
     const combinedIncludes = Array.from(new Set([...fixed, ...pickedFromPool]));
 
     const candidateNums = generateRandomNumbers({
@@ -119,7 +117,6 @@ export function generateRecentTrendNumbers(
 
     const analysis = analyzeLottoNumbers(candidateNums);
 
-    // 최종 조합에 포함된 최근 30회 후보군 번호들
     const actualFeatured = candidateNums.filter((num) => poolNumbers.includes(num));
 
     const featuredStats: StrategyFeaturedStat[] = actualFeatured.map((num) => {

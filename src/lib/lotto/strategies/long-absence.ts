@@ -1,7 +1,7 @@
 import { generateRandomNumbers } from "../generator";
 import { analyzeLottoNumbers } from "../analyzer";
 import { getAllNumberStatistics } from "../statistics";
-import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis, GeneratorOptions } from "@/types/lotto";
+import { StrategyGenerationResult, StrategyFeaturedStat, LottoAnalysis, GeneratorOptions, LottoDraw } from "@/types/lotto";
 
 /**
  * 배열 요소 무작위 셔플 (Fisher-Yates Shuffle)
@@ -16,18 +16,19 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * 미출현 회차 수 기준 후보군 18개 산출 (제외수 필터링 & 동률 셔플 적용)
+ * 미출현 회차 수 기준 후보군 18개 산출 (drawsContext 지원)
  */
 export function getLongAbsencePool(
   excludedNumbers: number[] = [],
-  poolSize = 18
+  poolSize = 18,
+  drawsContext?: LottoDraw[]
 ): Array<{ number: number; absentDraws: number }> {
-  const stats = getAllNumberStatistics();
+  const stats = getAllNumberStatistics(drawsContext);
   const excludedSet = new Set(excludedNumbers);
 
   const groupedByAbsence = new Map<number, number[]>();
   for (const s of stats) {
-    if (excludedSet.has(s.number)) continue; // 제외수 100% 후보군에서 제거
+    if (excludedSet.has(s.number)) continue;
 
     const absence = s.drawsSinceLastAppearance;
     if (!groupedByAbsence.has(absence)) {
@@ -83,7 +84,7 @@ function checkLongAbsenceConditions(
 }
 
 /**
- * 장기미출현형 전략 번호 생성 엔진 (GeneratorOptions 지원 확장)
+ * 장기미출현형 전략 번호 생성 엔진 (drawsContext 지원)
  */
 export function generateLongAbsenceNumbers(
   options: GeneratorOptions = {},
@@ -91,15 +92,16 @@ export function generateLongAbsenceNumbers(
 ): StrategyGenerationResult {
   const fixed = options.includeNumbers ?? options.fixedNumbers ?? [];
   const excluded = options.excludeNumbers ?? options.excludedNumbers ?? [];
-  const statsMap = new Map(getAllNumberStatistics().map((s) => [s.number, s]));
+  const drawsContext = options.drawsContext;
 
+  const statsMap = new Map(getAllNumberStatistics(drawsContext).map((s) => [s.number, s]));
   let fallbackResult: StrategyGenerationResult | null = null;
 
   const remainingSpots = Math.max(0, 6 - fixed.length);
   const targetPickCount = Math.min(remainingSpots, Math.floor(Math.random() * 3) + 2);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const pool = getLongAbsencePool(excluded, 18);
+    const pool = getLongAbsencePool(excluded, 18, drawsContext);
     const poolNumbers = pool.map((p) => p.number);
 
     const availablePool = poolNumbers.filter((n) => !fixed.includes(n));
