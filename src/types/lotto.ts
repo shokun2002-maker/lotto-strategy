@@ -28,3 +28,14 @@ export interface LottoAnalysis {
   consecutivePairs: [number, number][];
   ranges: LottoRangeDistribution;
 }
+
+export type LottoCombinationSource = "quick" | "together" | "manual";
+
+export interface SavedLottoCombination {
+  id: string;
+  numbers: number[];
+  source: LottoCombinationSource;
+  userPickedNumbers: number[];
+  recommendedNumbers: number[];
+  createdAt: string; // ISO String
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "@/components/common/Header";
 import BottomNavigation from "@/components/common/BottomNavigation";
 import LottoBall from "@/components/lotto/LottoBall";
@@ -8,8 +8,9 @@ import NumberGridBoard from "@/components/lotto/NumberGridBoard";
 import AnalysisSummaryCard from "@/components/lotto/AnalysisSummaryCard";
 import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { analyzeLottoNumbers } from "@/lib/lotto/analyzer";
+import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
 import { LottoAnalysis } from "@/types/lotto";
-import { RefreshCw, RotateCcw, Info, Sparkles, CheckCircle2 } from "lucide-react";
+import { RefreshCw, RotateCcw, Info, Sparkles, CheckCircle2, Bookmark, Check } from "lucide-react";
 
 export default function TogetherPage() {
   // 사용자가 직접 선택한 번호 목록 (0~6개)
@@ -20,6 +21,18 @@ export default function TogetherPage() {
   
   // 생성 중 스피너 상태
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // 저장 상태
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "duplicate">("idle");
+
+  // 번호 변경 시 이미 저장 여부 확인
+  useEffect(() => {
+    if (analysis && isCombinationSaved(analysis.numbers)) {
+      setSaveStatus("duplicate");
+    } else {
+      setSaveStatus("idle");
+    }
+  }, [analysis?.numbers]);
 
   // 번호 선택/해제 토글
   const handleToggleNumber = (num: number) => {
@@ -37,6 +50,7 @@ export default function TogetherPage() {
   const handleReset = () => {
     setSelectedNumbers([]);
     setAnalysis(null);
+    setSaveStatus("idle");
   };
 
   // 추천 받기 (또는 다시 추천)
@@ -50,11 +64,35 @@ export default function TogetherPage() {
         includeNumbers: selectedNumbers,
       });
       setAnalysis(analyzeLottoNumbers(finalNums));
+      setSaveStatus("idle");
       setIsGenerating(false);
 
-      // 결과 영역으로 부드러운 스크롤 이동
+      // 결과 영역으로 스크롤 이동
       window.scrollTo({ top: 400, behavior: "smooth" });
     }, 150);
+  };
+
+  // 번호 저장 핸들러
+  const handleSave = () => {
+    if (!analysis) return;
+    if (saveStatus === "saved" || saveStatus === "duplicate") return;
+
+    const recommendedNums = analysis.numbers.filter(
+      (n) => !selectedNumbers.includes(n)
+    );
+
+    const result = saveCombination({
+      numbers: analysis.numbers,
+      source: "together",
+      userPickedNumbers: selectedNumbers,
+      recommendedNumbers: recommendedNums,
+    });
+
+    if (result.success) {
+      setSaveStatus("saved");
+    } else if (result.isDuplicate) {
+      setSaveStatus("duplicate");
+    }
   };
 
   // 선택 개수에 따른 동적 버튼 문구
@@ -184,26 +222,60 @@ export default function TogetherPage() {
               })}
             </div>
 
-            {/* Action Buttons: Again vs Reset */}
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
+            {/* Action Buttons: Save + Re-generate + Reset */}
+            <div className="space-y-2.5 pt-1">
               <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                onClick={handleSave}
+                disabled={saveStatus === "saved" || saveStatus === "duplicate"}
+                className={`
+                  w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all duration-200 cursor-pointer
+                  ${
+                    saveStatus === "saved"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : saveStatus === "duplicate"
+                      ? "bg-slate-100 text-slate-500 border-slate-200"
+                      : "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200/80 active:scale-[0.98]"
+                  }
+                `}
               >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`}
-                />
-                <span>선택 유지 후 다시 추천</span>
+                {saveStatus === "saved" ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>✓ 내 번호에 저장했어요</span>
+                  </>
+                ) : saveStatus === "duplicate" ? (
+                  <>
+                    <Check className="w-4 h-4 text-slate-400" />
+                    <span>이미 저장된 번호예요</span>
+                  </>
+                ) : (
+                  <>
+                    <Bookmark className="w-4 h-4 text-blue-600" />
+                    <span>내 번호에 저장</span>
+                  </>
+                )}
               </button>
 
-              <button
-                onClick={handleReset}
-                className="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                <span>다시 선택하기</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  className="h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`}
+                  />
+                  <span>선택 유지 후 다시 추천</span>
+                </button>
+
+                <button
+                  onClick={handleReset}
+                  className="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                  <span>다시 선택하기</span>
+                </button>
+              </div>
             </div>
           </section>
         )}

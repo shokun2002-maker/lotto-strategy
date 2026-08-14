@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "@/components/common/Header";
 import BottomNavigation from "@/components/common/BottomNavigation";
 import LottoBall from "@/components/lotto/LottoBall";
 import AnalysisSummaryCard from "@/components/lotto/AnalysisSummaryCard";
 import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { analyzeLottoNumbers } from "@/lib/lotto/analyzer";
+import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
 import { LottoAnalysis } from "@/types/lotto";
-import { RefreshCw, Info, Sparkles } from "lucide-react";
+import { RefreshCw, Info, Sparkles, Bookmark, Check } from "lucide-react";
 
 export default function QuickRecommendationPage() {
   // 초기 페이지 진입 시 자동으로 1개 조합 생성 및 분석
@@ -18,6 +19,16 @@ export default function QuickRecommendationPage() {
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "duplicate">("idle");
+
+  // 현재 번호가 변경되면 이미 저장된 번호인지 확인하여 상태 동기화
+  useEffect(() => {
+    if (isCombinationSaved(analysis.numbers)) {
+      setSaveStatus("duplicate");
+    } else {
+      setSaveStatus("idle");
+    }
+  }, [analysis.numbers]);
 
   const handleGenerate = () => {
     setIsGenerating(true);
@@ -25,8 +36,24 @@ export default function QuickRecommendationPage() {
     setTimeout(() => {
       const newNumbers = generateRandomNumbers();
       setAnalysis(analyzeLottoNumbers(newNumbers));
+      setSaveStatus("idle");
       setIsGenerating(false);
     }, 150);
+  };
+
+  const handleSave = () => {
+    if (saveStatus === "saved" || saveStatus === "duplicate") return;
+
+    const result = saveCombination({
+      numbers: analysis.numbers,
+      source: "quick",
+    });
+
+    if (result.success) {
+      setSaveStatus("saved");
+    } else if (result.isDuplicate) {
+      setSaveStatus("duplicate");
+    }
   };
 
   return (
@@ -66,18 +93,53 @@ export default function QuickRecommendationPage() {
             ))}
           </div>
 
-          {/* Generate Button */}
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="w-full h-13 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-base flex items-center justify-center gap-2 shadow-sm transition-all duration-200 disabled:opacity-70 cursor-pointer"
-            aria-label="새 번호 만들기"
-          >
-            <RefreshCw
-              className={`w-5 h-5 ${isGenerating ? "animate-spin" : ""}`}
-            />
-            <span>새 번호 만들기</span>
-          </button>
+          {/* Buttons: Generate + Save to My Numbers */}
+          <div className="space-y-2.5 pt-1">
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="w-full h-13 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-base flex items-center justify-center gap-2 shadow-sm transition-all duration-200 disabled:opacity-70 cursor-pointer"
+              aria-label="새 번호 만들기"
+            >
+              <RefreshCw
+                className={`w-5 h-5 ${isGenerating ? "animate-spin" : ""}`}
+              />
+              <span>새 번호 만들기</span>
+            </button>
+
+            {/* Save Button */}
+            <button
+              onClick={handleSave}
+              disabled={saveStatus === "saved" || saveStatus === "duplicate"}
+              className={`
+                w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all duration-200 cursor-pointer
+                ${
+                  saveStatus === "saved"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : saveStatus === "duplicate"
+                    ? "bg-slate-100 text-slate-500 border-slate-200"
+                    : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80 active:scale-[0.98]"
+                }
+              `}
+            >
+              {saveStatus === "saved" ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>✓ 내 번호에 저장했어요</span>
+                </>
+              ) : saveStatus === "duplicate" ? (
+                <>
+                  <Check className="w-4 h-4 text-slate-400" />
+                  <span>이미 저장된 번호예요</span>
+                </>
+              ) : (
+                <>
+                  <Bookmark className="w-4 h-4 text-slate-500" />
+                  <span>내 번호에 저장</span>
+                </>
+              )}
+            </button>
+          </div>
         </section>
 
         {/* Reusable Analysis Summary Card */}
