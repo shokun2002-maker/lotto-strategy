@@ -8,6 +8,7 @@ import AnalysisSummaryCard from "@/components/lotto/AnalysisSummaryCard";
 import { LOTTO_STRATEGIES } from "@/lib/lotto/strategies";
 import { generateBalancedNumbers, BalancedGenerationResult } from "@/lib/lotto/strategies/balanced";
 import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
+import { getLatestDraw, getAllDraws } from "@/lib/lotto/draw-data";
 import {
   Sliders,
   RefreshCw,
@@ -17,12 +18,16 @@ import {
   Check,
   CheckCircle2,
   Lock,
+  Database,
 } from "lucide-react";
 
 export default function StrategyPage() {
   const [result, setResult] = useState<BalancedGenerationResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "duplicate">("idle");
+
+  const latestDraw = getLatestDraw();
+  const totalDrawCount = getAllDraws().length;
 
   const handleGenerateBalanced = () => {
     setIsGenerating(true);
@@ -40,7 +45,7 @@ export default function StrategyPage() {
       setIsGenerating(false);
 
       // Scroll to result view
-      window.scrollTo({ top: 350, behavior: "smooth" });
+      window.scrollTo({ top: 400, behavior: "smooth" });
     }, 150);
   };
 
@@ -78,6 +83,22 @@ export default function StrategyPage() {
             원하는 구성 방식을 선택해 번호를 만들어보세요.
           </p>
         </section>
+
+        {/* Data Status Summary Badge */}
+        {latestDraw && (
+          <section className="w-full bg-white rounded-xl p-3.5 border border-slate-200/70 shadow-xs flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="font-semibold text-slate-700">
+                <span>데이터 연동 </span>
+                <span className="text-blue-600 font-extrabold">제1회 ~ 제{latestDraw.drawNo}회</span>
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+              총 {totalDrawCount.toLocaleString()}개 회차
+            </span>
+          </section>
+        )}
 
         {/* Strategy Selection Cards List */}
         <section className="space-y-3.5">

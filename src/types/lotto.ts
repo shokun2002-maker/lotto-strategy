@@ -51,3 +51,21 @@ export interface LottoStrategyMeta {
   status: "active" | "preparing";
   badgeText?: string;
 }
+
+export interface LottoDraw {
+  drawNo: number;
+  drawDate: string; // "YYYY-MM-DD"
+  numbers: number[]; // [n1, n2, n3, n4, n5, n6] (오름차순)
+  bonus: number;
+}
+
+export interface NumberStatistics {
+  number: number;
+  totalAppearances: number;
+  recent10: number;
+  recent30: number;
+  recent50: number;
+  recent100: number;
+  lastAppearanceDraw: number | null;
+  drawsSinceLastAppearance: number;
+}

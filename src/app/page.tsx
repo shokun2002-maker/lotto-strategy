@@ -12,7 +12,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pb-24">
       {/* Top Fixed/Sticky Header */}
-      <Header roundNumber={1133} dDayText="추첨까지 D-3" />
+      <Header dDayText="추첨까지 D-3" />
 
       {/* Main Container - App layout constrained to max-w-md on desktop */}
       <main className="flex-1 w-full max-w-md mx-auto px-5 pt-6 pb-4 space-y-6">
