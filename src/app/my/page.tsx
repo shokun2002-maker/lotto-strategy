@@ -7,6 +7,7 @@ import LottoBall from "@/components/lotto/LottoBall";
 import { getSavedCombinations } from "@/lib/lotto/storage";
 import { getSavedStrategies } from "@/lib/lotto/strategy-storage";
 import { analyzeUserProfile } from "@/lib/lotto/user-profile";
+import { syncUserLottoData, getLastSyncedAt, SyncResult } from "@/lib/lotto/cloud-sync";
 import { createClient } from "@/lib/supabase/client";
 import { UserLottoProfile } from "@/types/lotto";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -28,6 +29,10 @@ import {
   UserPlus,
   LogOut,
   ShieldCheck,
+  Cloud,
+  CloudCheck,
+  CloudOff,
+  RefreshCw,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -36,24 +41,49 @@ export default function MyPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  useEffect(() => {
-    // 1. LocalStorage 기반 프로필 분석
+  // Cloud Sync 상태
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+
+  const loadLocalDataAndAnalyze = () => {
     const combinations = getSavedCombinations();
     const strategies = getSavedStrategies();
     const result = analyzeUserProfile(combinations, strategies);
     setProfile(result);
     setIsLoaded(true);
+  };
 
-    // 2. Supabase Auth 사용자 정보 로드
+  const handleRunCloudSync = async () => {
+    setIsSyncing(true);
+    const res = await syncUserLottoData();
+    setSyncResult(res);
+    setIsSyncing(false);
+
+    if (res.success) {
+      loadLocalDataAndAnalyze();
+    }
+  };
+
+  useEffect(() => {
+    loadLocalDataAndAnalyze();
+
     try {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data }) => {
-        setUser(data.user);
+        const u = data.user;
+        setUser(u);
+        if (u) {
+          handleRunCloudSync();
+        }
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange(
         (_event, session) => {
-          setUser(session?.user ?? null);
+          const u = session?.user ?? null;
+          setUser(u);
+          if (u) {
+            handleRunCloudSync();
+          }
         }
       );
 
@@ -70,9 +100,23 @@ export default function MyPage() {
       const supabase = createClient();
       await supabase.auth.signOut();
       setUser(null);
+      setSyncResult(null);
+      loadLocalDataAndAnalyze();
       router.refresh();
     } catch {
       // ignore
+    }
+  };
+
+  const formatLastSyncTime = (isoString?: string | null) => {
+    if (!isoString) return null;
+    try {
+      const d = new Date(isoString);
+      const hours = String(d.getHours()).padStart(2, "0");
+      const minutes = String(d.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    } catch {
+      return null;
     }
   };
 
@@ -80,23 +124,25 @@ export default function MyPage() {
     profile &&
     (profile.totalSavedCombinations > 0 || profile.totalSavedStrategies > 0);
 
+  const lastSyncTimeStr = formatLastSyncTime(syncResult?.lastSyncedAt || getLastSyncedAt());
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pb-24">
       {/* Header */}
       <Header title="MY" showBackButton={false} />
 
       <main className="flex-1 w-full max-w-md mx-auto px-5 pt-6 pb-4 space-y-6">
-        {/* Auth Account Status CTA Banner */}
+        {/* Auth Account Status CTA & Cloud Sync Banner */}
         {user ? (
-          <section className="w-full bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+          <section className="w-full bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-                  <ShieldCheck className="w-4 h-4" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 block">계정 로그인됨</span>
-                  <span className="text-sm font-extrabold text-white truncate max-w-[200px] block">
+                <div className="overflow-hidden">
+                  <span className="text-[11px] font-bold text-slate-400 block">로그인 계정</span>
+                  <span className="text-sm font-extrabold text-white truncate block max-w-[180px] sm:max-w-[220px]">
                     {user.email}
                   </span>
                 </div>
@@ -104,22 +150,61 @@ export default function MyPage() {
 
               <button
                 onClick={handleLogout}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 text-xs font-extrabold transition-all flex items-center gap-1 cursor-pointer shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>로그아웃</span>
               </button>
             </div>
+
+            {/* Cloud Sync Status Indicator */}
+            <div className="pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 font-bold">
+                {isSyncing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+                    <span className="text-blue-300">클라우드 동기화 중...</span>
+                  </>
+                ) : syncResult?.success === false ? (
+                  <>
+                    <CloudOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span className="text-rose-300 text-[11px]">
+                      동기화 실패 (로컬 안전 보관됨)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <CloudCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300">
+                      클라우드 동기화 완료 {lastSyncTimeStr ? `(${lastSyncTimeStr})` : ""}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={handleRunCloudSync}
+                disabled={isSyncing}
+                className="text-[11px] font-extrabold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin" : ""}`} />
+                <span>{syncResult?.success === false ? "다시 시도" : "동기화"}</span>
+              </button>
+            </div>
           </section>
         ) : (
           <section className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-blue-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-2">
               <div>
+                <div className="flex items-center gap-1.5 text-blue-600 font-extrabold text-xs mb-0.5">
+                  <Cloud className="w-4 h-4 text-blue-600" />
+                  <span>이 기기에 안전하게 저장 중</span>
+                </div>
                 <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
                   계정으로 안전하게 이어서 사용하세요
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  회원가입 후 저장한 번호와 전략을 보관할 수 있습니다.
+                  로그인하면 다른 기기에서도 내 번호와 전략을 그대로 사용할 수 있습니다.
                 </p>
               </div>
             </div>

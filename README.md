@@ -14,6 +14,13 @@
 
 ---
 
+## ☁️ Supabase Database & Cloud Sync (Day 15)
+
+- **Supabase database setup**: `supabase/migrations/001_saved_lotto_data.sql`
+- Day 15 Cloud Sync는 authenticated role의 table grants와 RLS 정책을 모두 필요로 합니다.
+
+---
+
 ## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
 
 본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.

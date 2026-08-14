@@ -1,4 +1,8 @@
 import { SavedCustomStrategy, LottoStrategyId } from "@/types/lotto";
+import {
+  syncSingleStrategyToCloud,
+  deleteSingleStrategyFromCloud,
+} from "./cloud-sync";
 
 const STORAGE_KEY = "lotto-strategy:saved-strategies";
 
@@ -119,6 +123,10 @@ export function saveStrategy(params: {
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+
+    // Secondary Cloud Sync
+    syncSingleStrategyToCloud(targetItem);
+
     return { success: true, isDuplicateName: false, savedItem: targetItem };
   } catch (error) {
     console.error("Failed to save strategy to LocalStorage:", error);
@@ -136,6 +144,10 @@ export function deleteStrategy(id: string): SavedCustomStrategy[] {
     const existing = getSavedStrategies();
     const updated = existing.filter((item) => item.id !== id);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Secondary Cloud Delete
+    deleteSingleStrategyFromCloud(id);
+
     return updated;
   } catch (error) {
     console.error("Failed to delete strategy from LocalStorage:", error);
@@ -152,20 +164,26 @@ export function incrementStrategyUsage(id: string): void {
   try {
     const existing = getSavedStrategies();
     const now = new Date().toISOString();
+    let updatedTarget: SavedCustomStrategy | null = null;
 
     const updated = existing.map((item) => {
       if (item.id === id) {
-        return {
+        updatedTarget = {
           ...item,
           usageCount: item.usageCount + 1,
           lastUsedAt: now,
           updatedAt: now,
         };
+        return updatedTarget;
       }
       return item;
     });
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    if (updatedTarget) {
+      syncSingleStrategyToCloud(updatedTarget);
+    }
   } catch (error) {
     console.error("Failed to increment strategy usage in LocalStorage:", error);
   }

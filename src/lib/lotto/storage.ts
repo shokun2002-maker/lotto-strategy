@@ -1,5 +1,10 @@
 import { SavedLottoCombination, LottoCombinationSource, LottoStrategyId } from "@/types/lotto";
 import { getNextDrawInfo } from "./draw-schedule";
+import {
+  syncSingleCombinationToCloud,
+  deleteSingleCombinationFromCloud,
+  clearAllCombinationsFromCloud as clearCloudCombs,
+} from "./cloud-sync";
 
 const STORAGE_KEY = "lotto-strategy:saved-combinations";
 
@@ -89,6 +94,9 @@ export function saveCombination(params: {
     const updated = [newItem, ...existing];
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
+    // Secondary Cloud Sync (비동기 처리)
+    syncSingleCombinationToCloud(newItem);
+
     return { success: true, isDuplicate: false, savedItem: newItem };
   } catch (error) {
     console.error("Failed to save combination to LocalStorage:", error);
@@ -106,6 +114,10 @@ export function deleteCombination(id: string): SavedLottoCombination[] {
     const existing = getSavedCombinations();
     const updated = existing.filter((item) => item.id !== id);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Secondary Cloud Delete
+    deleteSingleCombinationFromCloud(id);
+
     return updated;
   } catch (error) {
     console.error("Failed to delete combination from LocalStorage:", error);
@@ -121,6 +133,8 @@ export function clearAllCombinations(): void {
 
   try {
     window.localStorage.removeItem(STORAGE_KEY);
+    // Secondary Cloud Clear
+    clearCloudCombs();
   } catch (error) {
     console.error("Failed to clear combinations from LocalStorage:", error);
   }
