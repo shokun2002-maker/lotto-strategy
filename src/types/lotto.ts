@@ -4,8 +4,10 @@
 
 export interface GeneratorOptions {
   count?: number; // 기본값 6
-  fixedNumbers?: number[]; // 고정수 (추후 확장)
-  excludedNumbers?: number[]; // 제외수 (추후 확장)
+  includeNumbers?: number[]; // 직접 고른 포함수 (1~6개)
+  fixedNumbers?: number[]; // includeNumbers의 하위 호환
+  excludeNumbers?: number[]; // 제외수 (추후 확장)
+  excludedNumbers?: number[]; // excludeNumbers의 하위 호환
 }
 
 export interface LottoRangeDistribution {

@@ -6,6 +6,8 @@ export interface LottoBallProps {
   number: number;
   size?: "sm" | "md" | "lg";
   selected?: boolean;
+  badgeText?: string;
+  isUserPick?: boolean;
   className?: string;
 }
 
@@ -62,6 +64,8 @@ export default function LottoBall({
   number,
   size = "md",
   selected = false,
+  badgeText,
+  isUserPick,
   className = "",
 }: LottoBallProps) {
   const styles = getBallColorStyle(number);
@@ -72,18 +76,41 @@ export default function LottoBall({
     lg: "w-11 h-11 text-base font-extrabold",
   }[size];
 
+  // User pick visual highlight ring
+  const userPickRingClass = isUserPick
+    ? "ring-2 ring-blue-600 ring-offset-2"
+    : "";
+
   return (
-    <div
-      className={`
-        inline-flex items-center justify-center rounded-full transition-all duration-200 shadow-xs
-        ${sizeClasses}
-        ${styles.bg} ${styles.text}
-        ${selected ? "ring-2 ring-offset-2 ring-blue-600 scale-105" : ""}
-        ${className}
-      `}
-      aria-label={`로또 번호 ${number}`}
-    >
-      <span>{number}</span>
+    <div className="inline-flex flex-col items-center gap-1">
+      <div
+        className={`
+          inline-flex items-center justify-center rounded-full transition-all duration-200 shadow-xs
+          ${sizeClasses}
+          ${styles.bg} ${styles.text}
+          ${selected ? "ring-2 ring-offset-2 ring-blue-600 scale-105" : ""}
+          ${userPickRingClass}
+          ${className}
+        `}
+        aria-label={`로또 번호 ${number}`}
+      >
+        <span>{number}</span>
+      </div>
+
+      {badgeText && (
+        <span
+          className={`
+            text-[10px] font-black px-1.5 py-0.2 rounded-md leading-tight tracking-tight
+            ${
+              isUserPick
+                ? "bg-blue-600 text-white"
+                : "bg-slate-100 text-slate-500 border border-slate-200/80"
+            }
+          `}
+        >
+          {badgeText}
+        </span>
+      )}
     </div>
   );
 }
