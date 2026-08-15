@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Header from "@/components/common/Header";
+import Footer from "@/components/common/Footer";
 import BottomNavigation from "@/components/common/BottomNavigation";
 import ProBadge from "@/components/subscription/ProBadge";
 import { useEntitlement } from "@/components/subscription/EntitlementContext";
@@ -313,7 +314,8 @@ export default function ProPricingPage() {
         </section>
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Footer & Bottom Navigation */}
+      <Footer />
       <BottomNavigation />
     </div>
   );

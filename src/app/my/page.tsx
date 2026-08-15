@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Header from "@/components/common/Header";
+import Footer from "@/components/common/Footer";
 import BottomNavigation from "@/components/common/BottomNavigation";
 import LottoBall from "@/components/lotto/LottoBall";
 import { getSavedCombinations } from "@/lib/lotto/storage";
@@ -619,7 +620,8 @@ export default function MyPage() {
         </section>
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Footer & Bottom Navigation */}
+      <Footer />
       <BottomNavigation />
     </div>
   );

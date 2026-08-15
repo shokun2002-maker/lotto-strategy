@@ -112,6 +112,27 @@ Payment Product Catalog (public.payment_products)
 
 ---
 
+## 📜 Policy Pages & PG Compliance Foundation (Day 20)
+
+본 프로젝트는 실제 서비스 출시 및 PG 가맹 심사를 위해 법적/운영적 규정 준수 체계를 갖추고 있습니다.
+
+- **정책 라우트 페이지**:
+  - `/service-info`: 서비스 소개 및 주요 기능/미제공 범위 명세
+  - `/terms`: 서비스 이용약관
+  - `/privacy`: 개인정보처리방침 (LocalStorage, Supabase Auth/DB, Cloud Sync 수집범위 고지)
+  - `/refund-policy`: 환불 및 구독 해지 정책 가이드라인 초안
+  - `/disclaimer`: 법적 면책 고지 (과거 데이터 분석 도구 성격, 당첨 미보장, 복권 미판매 고지)
+- **공통 컴포넌트**: `ServiceDisclaimer.tsx` (compact/full 면책 박스), `Footer.tsx` (통합 정책 링크 푸터)
+- **PG 심사 서류 및 지침**:
+  - `docs/payment-provider-review.md`: PG 심사 제출용 서비스 설명서
+  - `docs/pg-inquiry-template.md`: PG 가맹 사전 문의 템플릿
+  - `docs/marketing-claims-guideline.md`: 광고/마케팅 문구 가이드라인 (금지/허용 표현)
+- **⚠️ 법적 안내 및 검토 주의사항**:
+  - 본 서비스에서 제공하는 이용약관 및 정책 문서는 개발 초기 검토용 **초안 템플릿**입니다.
+  - 실제 프로덕션 정식 결제 연동 및 상용 출시 전 **전문 변호사/노무사 등 법률 전문가 및 PG사 공식 정책 검토가 필수적**입니다.
+
+---
+
 ## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
 
 본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.
