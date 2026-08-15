@@ -84,6 +84,34 @@ Payment Provider (Toss / KakaoPay / NaverPay)
 
 ---
 
+## 🎟️ Payment Product Catalog & Access Pass Architecture (Day 19)
+
+본 프로젝트는 정기 구독뿐만 아니라 **단건 결제(One-time Purchase) 및 기간제 이용권 패스(Access Pass)**를 유연하게 지원하는 확장 결제 상품 아키텍처를 갖추고 있습니다.
+
+```
+Payment Product Catalog (public.payment_products)
+              ↓
+   createPaymentOrder (Locked Server-Side Amount)
+              ↓
+   Server Verification (verifyOneTimePayment)
+              ↓
+   grantAccessPass (starts_at ~ ends_at duration)
+              ↓
+   public.user_entitlements (Authoritative Feature Gate)
+```
+
+- **Migration Script**: `supabase/migrations/004_payment_products.sql`
+- **테이블**: `public.payment_products` (`subscription`, `one_time`, `access_pass`)
+- **핵심 모듈**:
+  - `src/lib/billing/capabilities.ts`: Provider Capability Matrix (Toss, KakaoPay, NaverPay 지원 결제수단 및 `BILLING_AVAILABILITY` 승인 상태 제어)
+  - `src/lib/billing/payment-service.ts`: 서버 정찰가 기반 `createPaymentOrder`, `grantAccessPass`, 만료 시 활성 정기구독 유무 대조 후 FREE 복구 `revokeExpiredAccess`
+- **보안 및 가용성 규칙**:
+  - `payment_products`: `anon`, `authenticated` CUD 조작 원천 차단 (`REVOKE ALL`), `authenticated`에 `SELECT` 권한만 부여
+  - `BILLING_AVAILABILITY`: 현재 기본값은 `"under_review"`이며, `"approved"`가 아닌 경우 실제 결제창 호출, PG SDK 로드 및 entitlement 자동 승인이 철저히 차단됨
+  - **임시 Fixture 가격 명시**: DB 및 코드에 설정된 금액(1,900원, 3,900원, 9,900원 등)은 결제 흐름 검증용 임시 테스트 fixture 가격이며, 실제 판매 가격은 미확정 상태입니다 (`active = false` 유지).
+
+---
+
 ## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
 
 본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.

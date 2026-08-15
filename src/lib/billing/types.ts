@@ -1,12 +1,47 @@
 /**
- * PG-Independent Billing & Subscription Types (Day 18 Foundation)
+ * PG-Independent Billing & Subscription Types (Day 18 & Day 19)
  */
 
 export type PaymentProviderType = "toss" | "kakaopay" | "naverpay" | "manual" | "mock";
 
+export type BillingAvailability = "unavailable" | "under_review" | "approved" | "maintenance";
+
+export type BillingProductType = "subscription" | "one_time" | "access_pass";
+
+export type PaymentMethod =
+  | "card"
+  | "transfer"
+  | "virtual_account"
+  | "mobile_phone"
+  | "easy_pay"
+  | "billing_card"
+  | "billing_account";
+
+export type EntitlementSource =
+  | "system"
+  | "manual"
+  | "subscription"
+  | "one_time"
+  | "access_pass"
+  | "promotion"
+  | "referral";
+
 export type SubscriptionStatus = "pending" | "active" | "past_due" | "canceled" | "expired";
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "canceled" | "refunded";
+
+export interface PaymentProduct {
+  id: string;
+  name: string;
+  productType: BillingProductType;
+  plan: "pro";
+  durationDays?: number | null;
+  amount: number;
+  currency: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface SubscriptionRecord {
   id: string;
@@ -55,6 +90,13 @@ export interface CancelSubscriptionParams {
   userId: string;
   subscriptionId: string;
   immediate?: boolean;
+}
+
+export interface GrantAccessPassParams {
+  userId: string;
+  productId: string;
+  durationDays: number;
+  source?: EntitlementSource;
 }
 
 export interface VerifyPaymentParams {

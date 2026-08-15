@@ -41,7 +41,7 @@ import {
 
 export default function MyPage() {
   const router = useRouter();
-  const { plan, isPro } = useEntitlement();
+  const { entitlement, plan, isPro } = useEntitlement();
   const [profile, setProfile] = useState<UserLottoProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -205,13 +205,24 @@ export default function MyPage() {
               <div className="flex items-center gap-1.5 font-bold">
                 <Crown className={`w-3.5 h-3.5 ${isPro ? "text-amber-400 fill-amber-400/20" : "text-slate-400"}`} />
                 <span className={isPro ? "text-amber-300 font-extrabold" : "text-slate-300"}>
-                  {isPro ? "PRO 멤버십 이용 중" : "FREE 요금제 이용 중"}
+                  {isPro ? (
+                    <>
+                      PRO 멤버십 이용 중
+                      {entitlement?.endsAt ? (
+                        <span className="text-[10px] font-medium text-amber-200/80 ml-1">
+                          (~{new Date(entitlement.endsAt).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })})
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    "FREE 요금제 이용 중"
+                  )}
                 </span>
               </div>
 
               <Link
                 href="/pro"
-                className="text-[11px] font-extrabold text-amber-300 hover:text-amber-200 bg-amber-950/60 hover:bg-amber-900 px-2.5 py-1 rounded-lg border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-extrabold text-amber-300 hover:text-amber-200 bg-amber-950/60 hover:bg-amber-900 px-2.5 py-1 rounded-lg border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer shrink-0"
               >
                 <span>{isPro ? "멤버십 안내" : "PRO 알아보기"}</span>
                 <ArrowRight className="w-3 h-3" />
