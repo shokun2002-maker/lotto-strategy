@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/common/Header";
 import BottomNavigation from "@/components/common/BottomNavigation";
+import KakaoLoginButton from "@/components/auth/KakaoLoginButton";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthError } from "@/lib/supabase/auth-errors";
 import { UserPlus, Mail, Lock, CheckCircle2, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
@@ -19,6 +20,17 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+
+  // URL Query parameter에서 OAuth error 추출 및 안내
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const err = searchParams.get("error");
+      if (err) {
+        setErrorMessage(formatAuthError(err));
+      }
+    }
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +129,21 @@ export default function SignUpPage() {
               <p className="leading-relaxed">{successNotice}</p>
             </div>
           )}
+
+          {/* Social Login Button */}
+          <div className="space-y-3.5">
+            <KakaoLoginButton
+              nextUrl="/my"
+              onError={(msg) => setErrorMessage(formatAuthError(msg))}
+            />
+            <div className="relative flex items-center justify-center pt-1">
+              <div className="border-t border-slate-200 w-full" />
+              <span className="bg-white px-3 text-xs font-bold text-slate-400 shrink-0">
+                또는
+              </span>
+              <div className="border-t border-slate-200 w-full" />
+            </div>
+          </div>
 
           <form onSubmit={handleSignUp} className="space-y-4">
             {/* Email Field */}

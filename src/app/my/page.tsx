@@ -126,6 +126,18 @@ export default function MyPage() {
 
   const lastSyncTimeStr = formatLastSyncTime(syncResult?.lastSyncedAt || getLastSyncedAt());
 
+  const isKakaoUser =
+    user?.app_metadata?.provider === "kakao" ||
+    (user?.app_metadata?.providers as string[])?.includes("kakao") ||
+    user?.identities?.some((id) => id.provider === "kakao");
+
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.user_metadata?.nickname ||
+    user?.email ||
+    (isKakaoUser ? "카카오 계정" : "사용자 계정");
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pb-24">
       {/* Header */}
@@ -137,13 +149,38 @@ export default function MyPage() {
           <section className="w-full bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shrink-0">
-                  <ShieldCheck className="w-5 h-5" />
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    isKakaoUser
+                      ? "bg-[#FEE500] text-[#191919]"
+                      : "bg-blue-600 text-white"
+                  }`}
+                >
+                  {isKakaoUser ? (
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 3C6.477 3 2 6.477 2 10.764c0 2.76 1.83 5.183 4.582 6.554l-1.168 4.29c-.102.375.318.68.647.463l5.06-3.344c.29.025.582.037.879.037 5.523 0 10-3.477 10-7.764C22 6.477 17.523 3 12 3z" />
+                    </svg>
+                  ) : (
+                    <ShieldCheck className="w-5 h-5" />
+                  )}
                 </div>
                 <div className="overflow-hidden">
-                  <span className="text-[11px] font-bold text-slate-400 block">로그인 계정</span>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[11px] font-bold text-slate-400">
+                      로그인 계정
+                    </span>
+                    {isKakaoUser ? (
+                      <span className="px-1.5 py-0.2 bg-[#FEE500] text-[#191919] text-[10px] font-black rounded flex items-center gap-0.5">
+                        카카오
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 text-[10px] font-extrabold rounded">
+                        이메일
+                      </span>
+                    )}
+                  </div>
                   <span className="text-sm font-extrabold text-white truncate block max-w-[180px] sm:max-w-[220px]">
-                    {user.email}
+                    {displayName}
                   </span>
                 </div>
               </div>
