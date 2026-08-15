@@ -133,6 +133,25 @@ Payment Product Catalog (public.payment_products)
 
 ---
 
+## 🚀 Production Readiness & Deployment Foundation (Day 21)
+
+본 프로젝트는 무료 베타 상용 출시를 위한 **Production Readiness 배포 인프라 기반**을 수립하였습니다.
+
+- **환경 변수 & 도메인**: `NEXT_PUBLIC_APP_URL` 기반 동적 바인딩 (`.env.example` 정비)
+- **보안 헤더**: `next.config.ts` 보안 헤더 적용 (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`)
+- **SEO & OpenGraph**: `layout.tsx` metadata (한국어 제목/설명), `src/app/robots.ts` (동적 크롤러 수집 제어), `src/app/sitemap.ts` (동적 XML 사이트맵)
+- **App Router UX Boundaries**:
+  - `src/app/not-found.tsx` (커스텀 404)
+  - `src/app/error.tsx` (Client Error Boundary - 스택 트레이스 숨김)
+  - `src/app/loading.tsx` (글로벌 로딩 UI)
+- **운영 가이드 문서 (`docs/`)**:
+  - `docs/production-oauth-checklist.md`: Kakao & Supabase Auth 운영 URL 설정 체크리스트
+  - `docs/deployment-checklist.md`: Vercel 플랫폼 추천 배포 가이드
+  - `docs/development-setup.md`: 로컬 개발 환경 및 Git 작성자 설정 가이드
+  - `docs/production-readiness.md`: 배포 준비도 종합 매트릭스 (`DONE` / `TODO` / `BLOCKED`)
+
+---
+
 ## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
 
 본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.

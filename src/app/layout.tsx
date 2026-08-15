@@ -13,11 +13,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "LOTTO STRATEGY | 스마트 로또 번호 조합 & 개인화 전략",
-  description: "데이터 분석과 맞춤 전략으로 만드는 나만의 로또 번호 스마트 조합 서비스",
+  metadataBase: new URL(baseUrl),
+  title: "로또전략 | LOTTO STRATEGY",
+  description:
+    "과거 로또 6/45 공개 데이터를 기반으로 번호 조합과 통계적 특성을 확인하고 나만의 전략을 관리하는 참고용 도구.",
+  openGraph: {
+    title: "로또전략 | LOTTO STRATEGY",
+    description:
+      "과거 로또 6/45 공개 데이터를 기반으로 번호 조합과 통계적 특성을 확인하고 나만의 전략을 관리하는 참고용 도구.",
+    siteName: "LOTTO STRATEGY",
+    locale: "ko_KR",
+    type: "website",
+  },
   icons: {
     icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 
