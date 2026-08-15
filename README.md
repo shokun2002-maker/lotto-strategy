@@ -21,6 +21,40 @@
 
 ---
 
+## 👑 FREE / PRO 권한 체계 & RLS 보안 (Day 17)
+
+본 프로젝트는 결제 연동(Day 18) 이전, Supabase DB 기반의 **authoritative FREE / PRO 요금제 권한 체계**를 갖추고 있습니다.
+
+- **Migration Script**: `supabase/migrations/002_user_entitlements.sql`
+- **테이블**: `public.user_entitlements`
+- **보안 원칙 (RLS)**:
+  - `SELECT`: 로그인 사용자 본인(`auth.uid() = user_id`)만 조회 허용
+  - `INSERT / UPDATE / DELETE`: 브라우저 클라이언트(`authenticated`/`anon`) 직접 수정 금지. (웹에서 `update({ plan: "pro" })` 차단)
+  - `Fallback`: 비회원(Guest), DB 조회 실패, entitlement 레코드 부재 시 안전하게 **FREE**로 자동 해석
+
+### 🧪 개발용 수동 PRO 테스트 방법 (Dev Manual PRO Testing)
+개발 환경에서 수동으로 PRO 권한을 부여하거나 테스트하려면 **Supabase Dashboard > SQL Editor**에서 아래 쿼리를 실행하세요:
+
+```sql
+-- 1. PRO 권한 수동 부여 (특정 사용자 UUID 지정)
+INSERT INTO public.user_entitlements (user_id, plan, status, source)
+VALUES ('YOUR_USER_UUID_HERE', 'pro', 'active', 'manual')
+ON CONFLICT (user_id) DO UPDATE
+SET plan = 'pro', status = 'active', updated_at = now();
+
+-- 2. 다시 FREE 권한으로 복구
+UPDATE public.user_entitlements
+SET plan = 'free', updated_at = now()
+WHERE user_id = 'YOUR_USER_UUID_HERE';
+```
+
+### 🔒 RLS 보안 검증 절차
+1. `SELECT * FROM public.user_entitlements;` -> 본인 user_id 행만 반환
+2. 타 사용자의 `user_id` 조회 시 -> 0건 반환 (RLS 차단)
+3. 브라우저 `supabase.from('user_entitlements').update({ plan: 'pro' })` 실행 시 -> Permission Denied 에러 발생
+
+---
+
 ## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
 
 본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.

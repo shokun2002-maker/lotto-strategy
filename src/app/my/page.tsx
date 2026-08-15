@@ -13,6 +13,8 @@ import { UserLottoProfile } from "@/types/lotto";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ProBadge from "@/components/subscription/ProBadge";
+import { useEntitlement } from "@/components/subscription/EntitlementContext";
 import {
   User,
   Zap,
@@ -33,10 +35,13 @@ import {
   CloudCheck,
   CloudOff,
   RefreshCw,
+  Crown,
+  ArrowRight,
 } from "lucide-react";
 
 export default function MyPage() {
   const router = useRouter();
+  const { plan, isPro } = useEntitlement();
   const [profile, setProfile] = useState<UserLottoProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -178,6 +183,7 @@ export default function MyPage() {
                         이메일
                       </span>
                     )}
+                    <ProBadge plan={plan} isPro={isPro} size="sm" />
                   </div>
                   <span className="text-sm font-extrabold text-white truncate block max-w-[180px] sm:max-w-[220px]">
                     {displayName}
@@ -192,6 +198,24 @@ export default function MyPage() {
                 <LogOut className="w-3.5 h-3.5" />
                 <span>로그아웃</span>
               </button>
+            </div>
+
+            {/* Membership Plan Status Indicator Bar */}
+            <div className="pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Crown className={`w-3.5 h-3.5 ${isPro ? "text-amber-400 fill-amber-400/20" : "text-slate-400"}`} />
+                <span className={isPro ? "text-amber-300 font-extrabold" : "text-slate-300"}>
+                  {isPro ? "PRO 멤버십 이용 중" : "FREE 요금제 이용 중"}
+                </span>
+              </div>
+
+              <Link
+                href="/pro"
+                className="text-[11px] font-extrabold text-amber-300 hover:text-amber-200 bg-amber-950/60 hover:bg-amber-900 px-2.5 py-1 rounded-lg border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>{isPro ? "멤버십 안내" : "PRO 알아보기"}</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
 
             {/* Cloud Sync Status Indicator */}

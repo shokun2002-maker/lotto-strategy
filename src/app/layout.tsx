@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { EntitlementProvider } from "@/components/subscription/EntitlementContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full bg-slate-50 antialiased font-sans">
-        {children}
+        <EntitlementProvider>{children}</EntitlementProvider>
       </body>
     </html>
   );

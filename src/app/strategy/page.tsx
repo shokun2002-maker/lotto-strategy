@@ -29,6 +29,9 @@ import {
   SavedCustomStrategy,
   BacktestSummary,
 } from "@/types/lotto";
+import { useEntitlement } from "@/components/subscription/EntitlementContext";
+import UpgradePromptModal from "@/components/subscription/UpgradePromptModal";
+import ProBadge from "@/components/subscription/ProBadge";
 import {
   Sliders,
   RefreshCw,
@@ -53,9 +56,20 @@ import {
   History,
   Play,
   Trophy,
+  Crown,
 } from "lucide-react";
 
 export default function StrategyPage() {
+  const { isPro, limits } = useEntitlement();
+
+  // PRO 업그레이드 모달 상태
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeModalInfo, setUpgradeModalInfo] = useState<{
+    title?: string;
+    description?: string;
+    featureName?: string;
+  }>({});
+
   // 결과 및 단일/다중 생성 상태
   const [results, setResults] = useState<StrategyGenerationResult[]>([]);
   const [activeStrategyTitle, setActiveStrategyTitle] = useState<string>("균형형 조합");
@@ -165,6 +179,17 @@ export default function StrategyPage() {
     e.preventDefault();
     setStrategyFormNotice(null);
 
+    // FREE 요금제 커스텀 전략 저장 한도 체크 (최대 1개)
+    if (!editingStrategyId && savedStrategies.length >= limits.maxSavedStrategies && !isPro) {
+      setUpgradeModalInfo({
+        title: "FREE 요금제 저장 한도 초과",
+        featureName: "커스텀 전략 다중 저장",
+        description: "FREE 요금제에서는 나만의 커스텀 전략을 1개까지 저장할 수 있습니다. PRO에서 무제한으로 보관해 보세요!",
+      });
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     const res = saveStrategy({
       id: editingStrategyId || undefined,
       name: strategyNameInput,
@@ -214,6 +239,17 @@ export default function StrategyPage() {
     st: SavedCustomStrategy,
     count: 1 | 3 | 5
   ) => {
+    // FREE 요금제 다중 게임 생성 제한 (3게임/5게임은 PRO)
+    if (count > limits.maxMultiGameCount && !isPro) {
+      setUpgradeModalInfo({
+        title: "PRO 멤버십 기능이에요",
+        featureName: `${count}게임 일괄 생성`,
+        description: `FREE 요금제에서는 1게임 생성을 지원합니다. PRO 멤버십에서 3게임/5게임 번호를 한 번에 완성해 보세요!`,
+      });
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setIsGenerating(true);
     setBatchSaveStatus(null);
 
@@ -438,18 +474,28 @@ export default function StrategyPage() {
                     <button
                       onClick={() => handleGenerateFromSavedStrategy(st, 3)}
                       disabled={isGenerating}
-                      className="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-70 shadow-xs"
+                      className="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-70 shadow-xs relative"
                     >
                       <Dices className="w-3.5 h-3.5" />
                       <span>3게임</span>
+                      {!isPro && (
+                        <span className="px-1 py-0.2 bg-amber-400 text-slate-900 text-[9px] font-black rounded-md ml-0.5">
+                          PRO
+                        </span>
+                      )}
                     </button>
                     <button
                       onClick={() => handleGenerateFromSavedStrategy(st, 5)}
                       disabled={isGenerating}
-                      className="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-70 shadow-xs"
+                      className="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-70 shadow-xs relative"
                     >
                       <Dices className="w-3.5 h-3.5" />
                       <span>5게임</span>
+                      {!isPro && (
+                        <span className="px-1 py-0.2 bg-amber-400 text-slate-900 text-[9px] font-black rounded-md ml-0.5">
+                          PRO
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -896,6 +942,15 @@ export default function StrategyPage() {
           </p>
         </section>
       </main>
+
+      {/* Upgrade Prompt Modal */}
+      <UpgradePromptModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        title={upgradeModalInfo.title}
+        featureName={upgradeModalInfo.featureName}
+        description={upgradeModalInfo.description}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation />
