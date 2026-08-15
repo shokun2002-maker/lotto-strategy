@@ -33,7 +33,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * 1순위: 동행복권 공식 common.do API
  * 2순위: smok95 github lotto API mirror
  */
-export function normalizeDraw(raw: any, expectedDrawNo?: number): LottoDraw | null {
+export function normalizeDraw(raw: Record<string, unknown> | null, expectedDrawNo?: number): LottoDraw | null {
   if (!raw) return null;
 
   let drawNo = 0;
@@ -131,7 +131,7 @@ export async function fetchDraw(
     if (res.ok) {
       const list = await res.json();
       if (Array.isArray(list)) {
-        const targetRaw = list.find((item: any) => Number(item.draw_no) === drawNo);
+        const targetRaw = list.find((item: Record<string, unknown>) => Number(item.draw_no) === drawNo);
         if (targetRaw) {
           const normalized = normalizeDraw(targetRaw, drawNo);
           if (normalized) {
@@ -140,8 +140,9 @@ export async function fetchDraw(
         }
       }
     }
-  } catch (err: any) {
-    return { status: "error", draw: null, message: `네트워크 또는 파싱 오류: ${err?.message || err}` };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return { status: "error", draw: null, message: `네트워크 또는 파싱 오류: ${errorMsg}` };
   }
 
   return { status: "not_found", draw: null, message: `제${drawNo}회 완료 데이터 미존재` };

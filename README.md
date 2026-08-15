@@ -152,21 +152,38 @@ Payment Product Catalog (public.payment_products)
 
 ---
 
-## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
+## 🛠️ 데이터 유지보수 및 파이프라인 (Weekly Lotto Data Update)
 
-본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.
+본 프로젝트는 원본 데이터 보존 및 무결성 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인(`scripts/lib/update-pipeline.ts`)을 갖추고 있습니다.
 
-### 1. 신규 회차 수집 및 안전 업데이트
-새로운 회차 추첨이 완료되면 아래 명령으로 원자적 파일 교체(Atomic Replacement)를 통해 데이터를 안전하게 업데이트합니다:
+### 주간 수동 운영 절차 (Weekly Operating Steps)
 
-```bash
-npm run lotto:update
-```
+1. **사전 검증 모드 (Dry-Run)**:
+   ```bash
+   npm run lotto:update:dry
+   ```
+2. **수집 및 검증 결과 확인**: 수집 회차(`latestDrawNo + 1`), 당첨번호, 7일 추첨일 간격 검증 결과 확인
+3. **실제 파일 원자적 업데이트**:
+   ```bash
+   npm run lotto:update
+   ```
+4. **프로덕션 빌드 검증**:
+   ```bash
+   npm run build
+   ```
+5. **JSON 변경사항 점검**:
+   ```bash
+   git diff src/data/lotto-draws.json
+   ```
+6. **Git 커밋 & 푸시**:
+   ```bash
+   git add README.md src/data/lotto-draws.json
+   git commit -m "data: update lotto draw XXXX"
+   git push
+   ```
+7. **Vercel Production 배포 및 상용 화면 확인**: 상용 웹사이트에서 최신 완료 회차, 다음 대상 회차 및 저장 번호 당첨 결과 판정 확인
 
-### 2. Dry-Run 모드 (파일 변경 없이 사전 검증만 수행)
-```bash
-npm run lotto:update -- --dry-run
-```
+> 상세 주간 운영 가이드 및 예외 대응 지침은 [`docs/lotto-data-operations.md`](file:///Users/glocalsoft/Desktop/코딩/lotto-strategy/docs/lotto-data-operations.md) 문서에서 확인할 수 있습니다.
 
 ### 3. 전체 데이터 무결성 검증
 ```bash

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "lotto:update": "npx tsx scripts/update-lotto-data.ts",
+    "lotto:update:dry": "npx tsx scripts/update-lotto-data.ts --dry-run",
     "lotto:validate": "npx tsx scripts/update-lotto-data.ts --validate-only"
   },
   "dependencies": {
