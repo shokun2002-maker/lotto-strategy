@@ -55,6 +55,35 @@ WHERE user_id = 'YOUR_USER_UUID_HERE';
 
 ---
 
+## 💳 PG-Independent Subscription Backend Foundation (Day 18)
+
+본 프로젝트는 특정 PG 결제사(토스, 카카오페이, 네이버페이 등)에 구동 로직이 종속되지 않는 **PG 독립적 구독 백엔드 파운데이션(Subscription Backend Foundation)**을 갖추고 있습니다.
+
+```
+Payment Provider (Toss / KakaoPay / NaverPay)
+              ↓
+  Server-Side Verification (API / Webhook)
+              ↓
+  public.payments / public.subscriptions (DB Log)
+              ↓
+  public.user_entitlements (Authoritative Feature Gate)
+```
+
+- **Migration Script**: `supabase/migrations/003_subscription_foundation.sql`
+- **테이블**: `public.subscriptions`, `public.payments`
+- **핵심 모듈**:
+  - `src/lib/billing/types.ts`: PG 독립적 타입 정의
+  - `src/lib/billing/provider.ts`: `IPaymentProviderAdapter` 어댑터 인터페이스
+  - `src/lib/billing/subscription-service.ts`: 서버 사이드 구독 승인, 해지 예약 (`cancel_at_period_end`), 만료 처리 및 `order_id` 중복 방지(Idempotency) 로직
+- **보안 규칙 (Table Privileges & RLS)**:
+  - `anon` 역할: 모든 테이블 권한 명시적 박탈 (`REVOKE ALL`), 조회를 포함한 어떠한 접근도 불가
+  - `authenticated` 역할: 모든 기존 테이블 권한 박탈 후 본인 레코드 `SELECT`만 최소 부여 (`GRANT SELECT`), `INSERT / UPDATE / DELETE / TRUNCATE / REFERENCES / TRIGGER` 권한 원천 제거
+  - 브라우저 클라이언트를 통한 결제/구독 상태 조작 시도는 RLS 및 Grant 레벨에서 이중 차단됨
+  - PG Secret Key 및 `SUPABASE_SERVICE_ROLE_KEY`는 서버 환경 전용이며 브라우저 노출 금지 (`.env.example` 참조)
+- **현재 상태**: 실제 PG 결제 심사 및 계약 완료 후 Provider Adapter 연결 예정 (현재 실결제 발생하지 않음)
+
+---
+
 ## 🛠️ 데이터 유지보수 및 파이프라인 (Lotto Data Maintenance)
 
 본 프로젝트는 원본 데이터 보존 및 검증을 최우선으로 하는 원자적(Atomic) 데이터 갱신 파이프라인을 갖추고 있습니다.

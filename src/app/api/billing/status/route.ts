@@ -1,0 +1,16 @@
+import { NextResponse } from "next/server";
+
+/**
+ * GET /api/billing/status
+ * Billing Foundation status & Health check API
+ */
+export async function GET() {
+  return NextResponse.json({
+    status: "online",
+    foundationVersion: "1.0.0",
+    pgProviderConnected: false,
+    environment: process.env.NODE_ENV,
+    supportedProviders: ["toss", "kakaopay", "naverpay", "manual", "mock"],
+    notice: "PG-independent subscription backend foundation ready.",
+  });
+}
