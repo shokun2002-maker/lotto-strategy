@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProBadge from "@/components/subscription/ProBadge";
 import { useEntitlement } from "@/components/subscription/EntitlementContext";
+import FeedbackModal from "@/components/feedback/FeedbackModal";
 import {
   User,
   Zap,
@@ -41,6 +42,7 @@ import {
   ArrowRight,
   Trash2,
   AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -58,6 +60,9 @@ export default function MyPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<"idle" | "confirming" | "deleting" | "success" | "error">("idle");
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // 베타 피드백 모달 상태
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const handleDeleteAccount = async () => {
     if (!user) return;
@@ -679,6 +684,27 @@ export default function MyPage() {
           )
         )}
 
+        {/* Beta Feedback CTA Section */}
+        <section className="w-full bg-linear-to-br from-blue-600 to-indigo-700 text-white rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div className="space-y-0.5 max-w-[210px] sm:max-w-[250px]">
+            <div className="flex items-center gap-1.5 text-blue-200 text-xs font-bold">
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>베타 피드백 참여</span>
+            </div>
+            <h3 className="font-extrabold text-sm sm:text-base text-white">서비스 의견 보내기</h3>
+            <p className="text-[11px] text-blue-100/90 font-medium leading-tight">
+              사용 중 불편한 점이나 추가되었으면 하는 기능을 제안해 주세요.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsFeedbackModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-white text-blue-700 hover:bg-blue-50 text-xs font-black shadow-xs transition-all cursor-pointer shrink-0 flex items-center gap-1"
+          >
+            <span>의견 작성</span>
+          </button>
+        </section>
+
         {/* Disclaimer Note */}
         <section className="w-full bg-slate-100/70 border border-slate-200/60 rounded-xl p-3.5 flex items-start gap-2.5 text-slate-500 text-xs">
           <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
@@ -687,6 +713,12 @@ export default function MyPage() {
           </p>
         </section>
       </main>
+
+      {/* Beta Feedback Submission Modal */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+      />
 
       {/* 2-Step Self Account Deletion Confirmation Modal */}
       {isDeleteModalOpen && (
