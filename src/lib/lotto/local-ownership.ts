@@ -158,3 +158,69 @@ export function isolateNonGuestItemsOnLogout(): void {
     console.error("Failed to isolate items on logout:", error);
   }
 }
+
+/**
+ * 회원 탈퇴 성공 시 해당 사용자(deletedUserId)에 속한 로컬 데이터를 안전하게 완전 정리합니다.
+ * (타 계정 데이터나 Guest 데이터는 절대 건드리지 않음)
+ */
+export function clearDeletedUserLocalData(deletedUserId: string): void {
+  if (!isBrowser() || !deletedUserId) return;
+  try {
+    // 1. Active & Isolated Combinations 정리
+    const rawActiveCombs = window.localStorage.getItem(ACTIVE_COMBINATIONS_KEY);
+    const activeCombs: SavedLottoCombination[] = rawActiveCombs ? JSON.parse(rawActiveCombs) : [];
+    const filteredActiveCombs = activeCombs.filter(
+      (c) => getItemOwner(COMBINATION_OWNERS_KEY, c.id) !== deletedUserId
+    );
+    window.localStorage.setItem(ACTIVE_COMBINATIONS_KEY, JSON.stringify(filteredActiveCombs));
+
+    const isolatedCombs = getIsolatedItems<SavedLottoCombination>(ISOLATED_COMBINATIONS_KEY);
+    const filteredIsolatedCombs = isolatedCombs.filter(
+      (c) => getItemOwner(COMBINATION_OWNERS_KEY, c.id) !== deletedUserId
+    );
+    setIsolatedItems(ISOLATED_COMBINATIONS_KEY, filteredIsolatedCombs);
+
+    // 2. Active & Isolated Strategies 정리
+    const rawActiveStrats = window.localStorage.getItem(ACTIVE_STRATEGIES_KEY);
+    const activeStrats: SavedCustomStrategy[] = rawActiveStrats ? JSON.parse(rawActiveStrats) : [];
+    const filteredActiveStrats = activeStrats.filter(
+      (s) => getItemOwner(STRATEGY_OWNERS_KEY, s.id) !== deletedUserId
+    );
+    window.localStorage.setItem(ACTIVE_STRATEGIES_KEY, JSON.stringify(filteredActiveStrats));
+
+    const isolatedStrats = getIsolatedItems<SavedCustomStrategy>(ISOLATED_STRATEGIES_KEY);
+    const filteredIsolatedStrats = isolatedStrats.filter(
+      (s) => getItemOwner(STRATEGY_OWNERS_KEY, s.id) !== deletedUserId
+    );
+    setIsolatedItems(ISOLATED_STRATEGIES_KEY, filteredIsolatedStrats);
+
+    // 3. Ownership Maps 정리
+    const rawCombOwners = window.localStorage.getItem(COMBINATION_OWNERS_KEY);
+    if (rawCombOwners) {
+      const combOwners: Record<string, string> = JSON.parse(rawCombOwners);
+      Object.keys(combOwners).forEach((id) => {
+        if (combOwners[id] === deletedUserId) delete combOwners[id];
+      });
+      window.localStorage.setItem(COMBINATION_OWNERS_KEY, JSON.stringify(combOwners));
+    }
+
+    const rawStratOwners = window.localStorage.getItem(STRATEGY_OWNERS_KEY);
+    if (rawStratOwners) {
+      const stratOwners: Record<string, string> = JSON.parse(rawStratOwners);
+      Object.keys(stratOwners).forEach((id) => {
+        if (stratOwners[id] === deletedUserId) delete stratOwners[id];
+      });
+      window.localStorage.setItem(STRATEGY_OWNERS_KEY, JSON.stringify(stratOwners));
+    }
+
+    // 4. Sync markers 정리
+    const lastSyncedUser = window.localStorage.getItem("lotto-strategy:last-synced-user-id");
+    if (lastSyncedUser === deletedUserId) {
+      window.localStorage.removeItem("lotto-strategy:last-synced-user-id");
+      window.localStorage.removeItem("lotto-strategy:last-sync-at");
+    }
+  } catch (error) {
+    console.error("Failed to clear deleted user local data:", error);
+  }
+}
+

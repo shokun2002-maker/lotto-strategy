@@ -9,7 +9,7 @@ import { getSavedCombinations } from "@/lib/lotto/storage";
 import { getSavedStrategies } from "@/lib/lotto/strategy-storage";
 import { analyzeUserProfile } from "@/lib/lotto/user-profile";
 import { syncUserLottoData, getLastSyncedAt, SyncResult } from "@/lib/lotto/cloud-sync";
-import { isolateNonGuestItemsOnLogout } from "@/lib/lotto/local-ownership";
+import { isolateNonGuestItemsOnLogout, clearDeletedUserLocalData } from "@/lib/lotto/local-ownership";
 import { createClient } from "@/lib/supabase/client";
 import { UserLottoProfile } from "@/types/lotto";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -39,6 +39,8 @@ import {
   RefreshCw,
   Crown,
   ArrowRight,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -51,6 +53,54 @@ export default function MyPage() {
   // Cloud Sync 상태
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+
+  // 회원 탈퇴 상태 (idle | confirming | deleting | success | error)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteState, setDeleteState] = useState<"idle" | "confirming" | "deleting" | "success" | "error">("idle");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setDeleteState("deleting");
+    setDeleteError(null);
+
+    try {
+      const currentUserId = user.id;
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setDeleteState("error");
+        setDeleteError(data.error || "회원 탈퇴 처리 중 오류가 발생했습니다.");
+        return;
+      }
+
+      // 서버 파기 성공 시에만 클라이언트 로컬 데이터 정리
+      clearDeletedUserLocalData(currentUserId);
+
+      const supabase = createClient();
+      await supabase.auth.signOut();
+
+      setDeleteState("success");
+
+      setTimeout(() => {
+        setUser(null);
+        setIsDeleteModalOpen(false);
+        setDeleteState("idle");
+        loadLocalDataAndAnalyze();
+        router.push("/");
+        router.refresh();
+      }, 1000);
+    } catch (err: unknown) {
+      console.error("handleDeleteAccount exception:", err);
+      setDeleteState("error");
+      setDeleteError("통신 오류로 인해 회원 탈퇴를 처리하지 못했습니다.");
+    }
+  };
 
   const loadLocalDataAndAnalyze = () => {
     const combinations = getSavedCombinations();
@@ -264,6 +314,22 @@ export default function MyPage() {
               >
                 <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin" : ""}`} />
                 <span>{syncResult?.success === false ? "다시 시도" : "동기화"}</span>
+              </button>
+            </div>
+
+            {/* Account Deletion Action */}
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+              <span className="text-[11px] text-slate-500 font-medium">계정 관리</span>
+              <button
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteState("confirming");
+                  setIsDeleteModalOpen(true);
+                }}
+                className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3 text-slate-500 hover:text-rose-400" />
+                <span>회원 탈퇴</span>
               </button>
             </div>
           </section>
@@ -621,6 +687,90 @@ export default function MyPage() {
           </p>
         </section>
       </main>
+
+      {/* 2-Step Self Account Deletion Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-sm shadow-xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base">회원 탈퇴</h3>
+                <p className="text-xs text-rose-600 font-bold">계정 및 데이터 파기 안내</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/70 border border-rose-100 rounded-xl p-3.5 space-y-2 text-xs text-slate-700 font-medium leading-relaxed">
+              <p className="font-bold text-rose-900">정말로 계정을 삭제하시겠습니까?</p>
+              <ul className="space-y-1 text-[11px] text-slate-600">
+                <li className="flex items-start gap-1">
+                  <span className="text-rose-500 font-bold">•</span>
+                  <span>Supabase 계정 정보 및 인증 프로필이 삭제됩니다.</span>
+                </li>
+                <li className="flex items-start gap-1">
+                  <span className="text-rose-500 font-bold">•</span>
+                  <span>Cloud에 저장된 번호 조합 및 커스텀 전략이 파기됩니다.</span>
+                </li>
+                <li className="flex items-start gap-1">
+                  <span className="text-rose-500 font-bold">•</span>
+                  <span>이용권(Entitlement) 및 혜택 상태가 초기화됩니다.</span>
+                </li>
+                <li className="flex items-start gap-1">
+                  <span className="text-rose-500 font-bold">•</span>
+                  <span>탈퇴 완료 후 기존 데이터는 복구할 수 없습니다.</span>
+                </li>
+              </ul>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-100/80 border border-rose-200 text-rose-800 text-xs font-bold">
+                ⚠️ {deleteError}
+              </div>
+            )}
+
+            {deleteState === "success" && (
+              <div className="p-3 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold text-center">
+                ✓ 회원 탈퇴가 성공적으로 완료되었습니다. 홈으로 이동합니다.
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => {
+                  if (deleteState !== "deleting") {
+                    setIsDeleteModalOpen(false);
+                    setDeleteState("idle");
+                    setDeleteError(null);
+                  }
+                }}
+                disabled={deleteState === "deleting" || deleteState === "success"}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-extrabold hover:bg-slate-50 disabled:opacity-50 transition-all cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteState === "deleting" || deleteState === "success"}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                {deleteState === "deleting" ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>탈퇴 처리 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>탈퇴하기</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer & Bottom Navigation */}
       <Footer />
