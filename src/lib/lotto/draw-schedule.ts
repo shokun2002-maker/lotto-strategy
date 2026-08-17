@@ -1,3 +1,4 @@
+import { LottoDraw } from "@/types/lotto";
 import { getLatestDraw } from "./draw-data";
 
 export interface NextDrawInfo {
@@ -24,8 +25,11 @@ export function addDaysToDate(dateString: string, days: number): string {
 /**
  * 다음 대상 추첨 회차 및 추첨일 정보 산출 함수
  */
-export function getNextDrawInfo(nowDate?: Date): NextDrawInfo {
-  const latestDraw = getLatestDraw();
+export function getNextDrawInfo(
+  nowDate?: Date,
+  drawsContext?: LottoDraw[]
+): NextDrawInfo {
+  const latestDraw = getLatestDraw(drawsContext);
 
   if (!latestDraw) {
     return {

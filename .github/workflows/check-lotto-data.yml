@@ -1,0 +1,37 @@
+name: Weekly Lotto Operation Check
+
+on:
+  schedule:
+    # 매주 토요일 21:00 KST (12:00 UTC)
+    - cron: '0 12 * * 6'
+    # 매주 토요일 23:00 KST (14:00 UTC)
+    - cron: '0 14 * * 6'
+    # 매주 일요일 01:00 KST (토요일 16:00 UTC)
+    - cron: '0 16 * * 6'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lotto operation check
+        run: npm run lotto:check
+
+      - name: Run lotto regression tests
+        run: npm run lotto:regression

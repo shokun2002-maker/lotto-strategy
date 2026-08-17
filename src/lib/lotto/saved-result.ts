@@ -22,7 +22,8 @@ export interface SavedCombinationResult {
  * 저장된 번호 조합의 회차 결과 상태 및 당첨 대조 결과를 파생 계산하는 함수 (derived computation)
  */
 export function getSavedCombinationResult(
-  combination: SavedLottoCombination
+  combination: SavedLottoCombination,
+  drawsContext?: LottoDraw[]
 ): SavedCombinationResult {
   if (!combination.targetDrawNo || typeof combination.targetDrawNo !== "number") {
     return {
@@ -31,7 +32,7 @@ export function getSavedCombinationResult(
   }
 
   const drawNo = combination.targetDrawNo;
-  const actualDraw = getDrawByNumber(drawNo);
+  const actualDraw = getDrawByNumber(drawNo, drawsContext);
 
   if (!actualDraw) {
     return {
