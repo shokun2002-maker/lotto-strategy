@@ -9,6 +9,7 @@ import { getSavedCombinations } from "@/lib/lotto/storage";
 import { getSavedStrategies } from "@/lib/lotto/strategy-storage";
 import { analyzeUserProfile } from "@/lib/lotto/user-profile";
 import { syncUserLottoData, getLastSyncedAt, SyncResult } from "@/lib/lotto/cloud-sync";
+import { isolateNonGuestItemsOnLogout } from "@/lib/lotto/local-ownership";
 import { createClient } from "@/lib/supabase/client";
 import { UserLottoProfile } from "@/types/lotto";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -103,6 +104,7 @@ export default function MyPage() {
 
   const handleLogout = async () => {
     try {
+      isolateNonGuestItemsOnLogout();
       const supabase = createClient();
       await supabase.auth.signOut();
       setUser(null);

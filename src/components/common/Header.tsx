@@ -7,6 +7,7 @@ import { Sparkles, ArrowLeft, LogIn, LogOut, User as UserIcon } from "lucide-rea
 import { getNextDrawInfo } from "@/lib/lotto/draw-schedule";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { isolateNonGuestItemsOnLogout } from "@/lib/lotto/local-ownership";
 
 interface HeaderProps {
   roundNumber?: number;
@@ -53,6 +54,7 @@ export default function Header({
 
   const handleLogout = async () => {
     try {
+      isolateNonGuestItemsOnLogout();
       const supabase = createClient();
       await supabase.auth.signOut();
       setUser(null);

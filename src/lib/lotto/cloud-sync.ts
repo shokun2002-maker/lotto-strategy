@@ -11,10 +11,21 @@ import {
   SavedCustomStrategyRow,
 } from "./cloud-mapper";
 import { mergeCombinations, mergeCustomStrategies } from "./cloud-merge";
+import {
+  getItemOwner,
+  setItemOwner,
+  getIsolatedItems,
+  setIsolatedItems,
+  COMBINATION_OWNERS_KEY,
+  STRATEGY_OWNERS_KEY,
+  ISOLATED_COMBINATIONS_KEY,
+  ISOLATED_STRATEGIES_KEY,
+} from "./local-ownership";
 
 const COMBINATIONS_STORAGE_KEY = "lotto-strategy:saved-combinations";
 const STRATEGIES_STORAGE_KEY = "lotto-strategy:saved-strategies";
 const LAST_SYNC_KEY = "lotto-strategy:last-sync-at";
+const LAST_SYNCED_USER_ID_KEY = "lotto-strategy:last-synced-user-id";
 
 export interface SyncResult {
   success: boolean;
@@ -60,11 +71,25 @@ export async function syncUserLottoData(): Promise<SyncResult> {
     }
 
     const userId = userData.user.id;
+    const lastSyncedUserId = window.localStorage.getItem(LAST_SYNCED_USER_ID_KEY);
+    // 동일 브라우저에서 계정이 전환된 경우 (Account A -> Logout -> Account B)
+    const isAccountSwitched = !!lastSyncedUserId && lastSyncedUserId !== userId;
 
     // ----------------------------------------------------
-    // 1. Saved Combinations 동기화
+    // 1. Saved Combinations 동기화 (Active Storage + Isolated Storage 탐색)
     // ----------------------------------------------------
-    const localCombs = getSavedCombinations();
+    const activeLocalCombs = getSavedCombinations();
+    const prevIsolatedCombs = getIsolatedItems<SavedLottoCombination>(ISOLATED_COMBINATIONS_KEY);
+
+    const allCombsMap = new Map<string, SavedLottoCombination>();
+    activeLocalCombs.forEach((c) => allCombsMap.set(c.id, c));
+    prevIsolatedCombs.forEach((c) => {
+      if (!allCombsMap.has(c.id)) {
+        allCombsMap.set(c.id, c);
+      }
+    });
+
+    const allLocalCombs = Array.from(allCombsMap.values());
 
     const { data: cloudCombRows, error: fetchCombError } = await supabase
       .from("saved_combinations")
@@ -82,14 +107,46 @@ export async function syncUserLottoData(): Promise<SyncResult> {
     }
 
     const cloudCombs = (cloudCombRows as SavedLottoCombinationRow[] || []).map(rowToCombination);
-    const mergedCombs = mergeCombinations(localCombs, cloudCombs);
 
-    // 병합 결과를 LocalStorage에 즉시 반영 (Local Cache/Offline Backup)
-    window.localStorage.setItem(COMBINATIONS_STORAGE_KEY, JSON.stringify(mergedCombs));
+    // 명시적 소유권(ownership) 기반 데이터 격리 및 분리
+    // 1) eligibleCombs: 현재 계정 B에 병합/업로드 가능한 데이터 (guest, currentUser, 허용 legacy)
+    // 2) isolatedCombs: 다른 계정 A 소유 또는 계정 전환 상황의 legacy 격리 데이터 (별도 isolated storage에 보존)
+    const eligibleCombs: SavedLottoCombination[] = [];
+    const isolatedCombs: SavedLottoCombination[] = [];
 
-    // Cloud upsert
-    if (mergedCombs.length > 0) {
-      const combRowsToUpsert = mergedCombs.map((c) => combinationToRow(c, userId));
+    allLocalCombs.forEach((c) => {
+      const owner = getItemOwner(COMBINATION_OWNERS_KEY, c.id);
+      if (owner === "guest" || owner === userId) {
+        eligibleCombs.push(c);
+      } else if (owner !== undefined && owner !== userId) {
+        isolatedCombs.push(c);
+      } else {
+        // legacy 데이터 (owner 메타데이터 없음)
+        if (!isAccountSwitched) {
+          eligibleCombs.push(c);
+        } else {
+          isolatedCombs.push(c);
+        }
+      }
+    });
+
+    const mergedEligibleCombs = mergeCombinations(eligibleCombs, cloudCombs);
+
+    // 병합된 eligible 조합의 소유권을 현재 계정(userId)으로 승격/기록
+    mergedEligibleCombs.forEach((c) => setItemOwner(COMBINATION_OWNERS_KEY, c.id, userId));
+
+    // Active Storage 저장: 오직 현재 계정에 속한 eligible 데이터만 saved-combinations에 저장 (UI 노출용)
+    const activeCombs = mergedEligibleCombs.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    window.localStorage.setItem(COMBINATIONS_STORAGE_KEY, JSON.stringify(activeCombs));
+
+    // Isolated Storage 저장: 타 계정 소유 및 격리 데이터만 isolated-combinations에만 보존 (UI 노출 차단)
+    setIsolatedItems(ISOLATED_COMBINATIONS_KEY, isolatedCombs);
+
+    // Cloud upsert: 오직 mergedEligibleCombs만 현재 계정 Cloud에 반영 (isolatedCombs는 절대 업로드 금지)
+    if (mergedEligibleCombs.length > 0) {
+      const combRowsToUpsert = mergedEligibleCombs.map((c) => combinationToRow(c, userId));
       const { error: upsertCombError } = await supabase
         .from("saved_combinations")
         .upsert(combRowsToUpsert, { onConflict: "id" });
@@ -100,9 +157,20 @@ export async function syncUserLottoData(): Promise<SyncResult> {
     }
 
     // ----------------------------------------------------
-    // 2. Saved Custom Strategies 동기화
+    // 2. Saved Custom Strategies 동기화 (Active Storage + Isolated Storage 탐색)
     // ----------------------------------------------------
-    const localStrats = getSavedStrategies();
+    const activeLocalStrats = getSavedStrategies();
+    const prevIsolatedStrats = getIsolatedItems<SavedCustomStrategy>(ISOLATED_STRATEGIES_KEY);
+
+    const allStratsMap = new Map<string, SavedCustomStrategy>();
+    activeLocalStrats.forEach((s) => allStratsMap.set(s.id, s));
+    prevIsolatedStrats.forEach((s) => {
+      if (!allStratsMap.has(s.id)) {
+        allStratsMap.set(s.id, s);
+      }
+    });
+
+    const allLocalStrats = Array.from(allStratsMap.values());
 
     const { data: cloudStratRows, error: fetchStratError } = await supabase
       .from("saved_custom_strategies")
@@ -113,21 +181,49 @@ export async function syncUserLottoData(): Promise<SyncResult> {
       console.warn("Cloud strategies fetch failed:", fetchStratError.message);
       return {
         success: false,
-        syncedCombinationsCount: mergedCombs.length,
+        syncedCombinationsCount: mergedEligibleCombs.length,
         syncedStrategiesCount: 0,
         error: fetchStratError.message,
       };
     }
 
     const cloudStrats = (cloudStratRows as SavedCustomStrategyRow[] || []).map(rowToStrategy);
-    const mergedStrats = mergeCustomStrategies(localStrats, cloudStrats);
 
-    // 병합 결과를 LocalStorage에 즉시 반영
-    window.localStorage.setItem(STRATEGIES_STORAGE_KEY, JSON.stringify(mergedStrats));
+    const eligibleStrats: SavedCustomStrategy[] = [];
+    const isolatedStrats: SavedCustomStrategy[] = [];
 
-    // Cloud upsert
-    if (mergedStrats.length > 0) {
-      const stratRowsToUpsert = mergedStrats.map((s) => strategyToRow(s, userId));
+    allLocalStrats.forEach((s) => {
+      const owner = getItemOwner(STRATEGY_OWNERS_KEY, s.id);
+      if (owner === "guest" || owner === userId) {
+        eligibleStrats.push(s);
+      } else if (owner !== undefined && owner !== userId) {
+        isolatedStrats.push(s);
+      } else {
+        if (!isAccountSwitched) {
+          eligibleStrats.push(s);
+        } else {
+          isolatedStrats.push(s);
+        }
+      }
+    });
+
+    const mergedEligibleStrats = mergeCustomStrategies(eligibleStrats, cloudStrats);
+
+    // 병합된 eligible 전략의 소유권을 현재 계정(userId)으로 승격/기록
+    mergedEligibleStrats.forEach((s) => setItemOwner(STRATEGY_OWNERS_KEY, s.id, userId));
+
+    // Active Storage 저장: 오직 현재 계정에 속한 eligible 전략만 saved-strategies에 저장 (UI 노출용)
+    const activeStrats = mergedEligibleStrats.sort(
+      (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+    );
+    window.localStorage.setItem(STRATEGIES_STORAGE_KEY, JSON.stringify(activeStrats));
+
+    // Isolated Storage 저장: 타 계정 소유 및 격리 전략만 isolated-strategies에만 보존 (UI 노출 차단)
+    setIsolatedItems(ISOLATED_STRATEGIES_KEY, isolatedStrats);
+
+    // Cloud upsert: 오직 mergedEligibleStrats만 현재 계정 Cloud에 반영 (isolatedStrats 절대 업로드 금지)
+    if (mergedEligibleStrats.length > 0) {
+      const stratRowsToUpsert = mergedEligibleStrats.map((s) => strategyToRow(s, userId));
       const { error: upsertStratError } = await supabase
         .from("saved_custom_strategies")
         .upsert(stratRowsToUpsert, { onConflict: "id" });
@@ -139,21 +235,22 @@ export async function syncUserLottoData(): Promise<SyncResult> {
 
     const nowIso = new Date().toISOString();
     window.localStorage.setItem(LAST_SYNC_KEY, nowIso);
+    window.localStorage.setItem(LAST_SYNCED_USER_ID_KEY, userId);
 
     return {
       success: true,
       isGuest: false,
-      syncedCombinationsCount: mergedCombs.length,
-      syncedStrategiesCount: mergedStrats.length,
+      syncedCombinationsCount: mergedEligibleCombs.length,
+      syncedStrategiesCount: mergedEligibleStrats.length,
       lastSyncedAt: nowIso,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("User lotto data sync exception:", err);
     return {
       success: false,
       syncedCombinationsCount: 0,
       syncedStrategiesCount: 0,
-      error: err?.message || "Sync failed",
+      error: (err as Error)?.message || "Sync failed",
     };
   }
 }

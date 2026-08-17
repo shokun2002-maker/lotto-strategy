@@ -3,6 +3,13 @@ import {
   syncSingleStrategyToCloud,
   deleteSingleStrategyFromCloud,
 } from "./cloud-sync";
+import {
+  setItemOwner,
+  removeItemOwner,
+  removeIsolatedItem,
+  STRATEGY_OWNERS_KEY,
+  ISOLATED_STRATEGIES_KEY,
+} from "./local-ownership";
 
 const STORAGE_KEY = "lotto-strategy:saved-strategies";
 
@@ -46,13 +53,16 @@ export function getStrategyById(id: string): SavedCustomStrategy | undefined {
 /**
  * 커스텀 전략 신규 저장 또는 수정
  */
-export function saveStrategy(params: {
-  id?: string;
-  name: string;
-  baseStrategy: LottoStrategyId;
-  fixedNumbers: number[];
-  excludedNumbers: number[];
-}): {
+export function saveStrategy(
+  params: {
+    id?: string;
+    name: string;
+    baseStrategy: LottoStrategyId;
+    fixedNumbers: number[];
+    excludedNumbers: number[];
+  },
+  ownerUserId?: string
+): {
   success: boolean;
   isDuplicateName: boolean;
   errorMessage?: string;
@@ -124,6 +134,10 @@ export function saveStrategy(params: {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
 
+    // Record explicit ownership metadata ("guest" or auth.uid())
+    const owner = ownerUserId?.trim() || "guest";
+    setItemOwner(STRATEGY_OWNERS_KEY, targetItem.id, owner);
+
     // Secondary Cloud Sync
     syncSingleStrategyToCloud(targetItem);
 
@@ -144,6 +158,10 @@ export function deleteStrategy(id: string): SavedCustomStrategy[] {
     const existing = getSavedStrategies();
     const updated = existing.filter((item) => item.id !== id);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Remove ownership metadata & remove from isolated storage if present
+    removeItemOwner(STRATEGY_OWNERS_KEY, id);
+    removeIsolatedItem(ISOLATED_STRATEGIES_KEY, id);
 
     // Secondary Cloud Delete
     deleteSingleStrategyFromCloud(id);

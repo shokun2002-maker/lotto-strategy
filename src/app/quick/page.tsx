@@ -9,11 +9,31 @@ import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { analyzeLottoNumbers } from "@/lib/lotto/analyzer";
 import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
 import { getNextDrawInfo } from "@/lib/lotto/draw-schedule";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 import { LottoAnalysis } from "@/types/lotto";
 import { RefreshCw, Info, Sparkles, Bookmark, Check } from "lucide-react";
 
 export default function QuickRecommendationPage() {
   const nextDraw = getNextDrawInfo();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        setUser(data.user);
+      });
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+      });
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    } catch {
+      // fallback
+    }
+  }, []);
 
   // 초기 페이지 진입 시 자동으로 1개 조합 생성 및 분석
   const [analysis, setAnalysis] = useState<LottoAnalysis>(() => {
@@ -47,11 +67,14 @@ export default function QuickRecommendationPage() {
   const handleSave = () => {
     if (saveStatus === "saved" || saveStatus === "duplicate") return;
 
-    const result = saveCombination({
-      numbers: analysis.numbers,
-      source: "quick",
-      targetDrawNo: nextDraw.drawNo,
-    });
+    const result = saveCombination(
+      {
+        numbers: analysis.numbers,
+        source: "quick",
+        targetDrawNo: nextDraw.drawNo,
+      },
+      user?.id
+    );
 
     if (result.success) {
       setSaveStatus("saved");

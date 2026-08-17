@@ -5,6 +5,13 @@ import {
   deleteSingleCombinationFromCloud,
   clearAllCombinationsFromCloud as clearCloudCombs,
 } from "./cloud-sync";
+import {
+  setItemOwner,
+  removeItemOwner,
+  removeIsolatedItem,
+  COMBINATION_OWNERS_KEY,
+  ISOLATED_COMBINATIONS_KEY,
+} from "./local-ownership";
 
 const STORAGE_KEY = "lotto-strategy:saved-combinations";
 
@@ -58,14 +65,17 @@ export function isCombinationSaved(numbers: number[], targetDrawNo?: number): bo
 /**
  * 새로운 번호 조합 저장 (targetDrawNo 자동 할당 및 회차별 중복 방지 적용)
  */
-export function saveCombination(params: {
-  numbers: number[];
-  source: LottoCombinationSource;
-  targetDrawNo?: number;
-  strategyId?: LottoStrategyId;
-  userPickedNumbers?: number[];
-  recommendedNumbers?: number[];
-}): { success: boolean; isDuplicate: boolean; savedItem?: SavedLottoCombination } {
+export function saveCombination(
+  params: {
+    numbers: number[];
+    source: LottoCombinationSource;
+    targetDrawNo?: number;
+    strategyId?: LottoStrategyId;
+    userPickedNumbers?: number[];
+    recommendedNumbers?: number[];
+  },
+  ownerUserId?: string
+): { success: boolean; isDuplicate: boolean; savedItem?: SavedLottoCombination } {
   if (!isBrowser()) return { success: false, isDuplicate: false };
 
   const targetDrawNo = params.targetDrawNo ?? getNextDrawInfo().drawNo;
@@ -94,6 +104,10 @@ export function saveCombination(params: {
     const updated = [newItem, ...existing];
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
+    // Record explicit ownership metadata ("guest" or auth.uid())
+    const owner = ownerUserId?.trim() || "guest";
+    setItemOwner(COMBINATION_OWNERS_KEY, newItem.id, owner);
+
     // Secondary Cloud Sync (비동기 처리)
     syncSingleCombinationToCloud(newItem);
 
@@ -114,6 +128,10 @@ export function deleteCombination(id: string): SavedLottoCombination[] {
     const existing = getSavedCombinations();
     const updated = existing.filter((item) => item.id !== id);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Remove ownership metadata & remove from isolated storage if present
+    removeItemOwner(COMBINATION_OWNERS_KEY, id);
+    removeIsolatedItem(ISOLATED_COMBINATIONS_KEY, id);
 
     // Secondary Cloud Delete
     deleteSingleCombinationFromCloud(id);

@@ -10,11 +10,31 @@ import { generateRandomNumbers } from "@/lib/lotto/generator";
 import { analyzeLottoNumbers } from "@/lib/lotto/analyzer";
 import { saveCombination, isCombinationSaved } from "@/lib/lotto/storage";
 import { getNextDrawInfo } from "@/lib/lotto/draw-schedule";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 import { LottoAnalysis } from "@/types/lotto";
 import { RefreshCw, RotateCcw, Info, Sparkles, CheckCircle2, Bookmark, Check } from "lucide-react";
 
 export default function TogetherPage() {
   const nextDraw = getNextDrawInfo();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        setUser(data.user);
+      });
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+      });
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    } catch {
+      // fallback
+    }
+  }, []);
 
   // 사용자가 직접 선택한 번호 목록 (0~6개)
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
@@ -84,13 +104,16 @@ export default function TogetherPage() {
       (n) => !selectedNumbers.includes(n)
     );
 
-    const result = saveCombination({
-      numbers: analysis.numbers,
-      source: "together",
-      targetDrawNo: nextDraw.drawNo,
-      userPickedNumbers: selectedNumbers,
-      recommendedNumbers: recommendedNums,
-    });
+    const result = saveCombination(
+      {
+        numbers: analysis.numbers,
+        source: "together",
+        targetDrawNo: nextDraw.drawNo,
+        userPickedNumbers: selectedNumbers,
+        recommendedNumbers: recommendedNums,
+      },
+      user?.id
+    );
 
     if (result.success) {
       setSaveStatus("saved");

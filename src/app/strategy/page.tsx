@@ -21,6 +21,8 @@ import {
   deleteStrategy,
   incrementStrategyUsage,
 } from "@/lib/lotto/strategy-storage";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 import { runStrategyBacktest } from "@/lib/lotto/backtest";
 import { getLatestDraw, getAllDraws } from "@/lib/lotto/draw-data";
 import {
@@ -61,6 +63,24 @@ import {
 
 export default function StrategyPage() {
   const { isPro, limits } = useEntitlement();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        setUser(data.user);
+      });
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+      });
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    } catch {
+      // fallback
+    }
+  }, []);
 
   // PRO 업그레이드 모달 상태
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -190,13 +210,16 @@ export default function StrategyPage() {
       return;
     }
 
-    const res = saveStrategy({
-      id: editingStrategyId || undefined,
-      name: strategyNameInput,
-      baseStrategy: customBaseStrategy,
-      fixedNumbers,
-      excludedNumbers,
-    });
+    const res = saveStrategy(
+      {
+        id: editingStrategyId || undefined,
+        name: strategyNameInput,
+        baseStrategy: customBaseStrategy,
+        fixedNumbers,
+        excludedNumbers,
+      },
+      user?.id
+    );
 
     if (res.success) {
       setSavedStrategies(getSavedStrategies());
@@ -290,15 +313,18 @@ export default function StrategyPage() {
     let dupCount = 0;
 
     results.forEach((res) => {
-      const saveRes = saveCombination({
-        numbers: res.numbers,
-        source: "strategy",
-        strategyId: res.strategyId,
-        userPickedNumbers: res.metadata.fixedNumbers ?? [],
-        recommendedNumbers: res.numbers.filter(
-          (n) => !(res.metadata.fixedNumbers ?? []).includes(n)
-        ),
-      });
+      const saveRes = saveCombination(
+        {
+          numbers: res.numbers,
+          source: "strategy",
+          strategyId: res.strategyId,
+          userPickedNumbers: res.metadata.fixedNumbers ?? [],
+          recommendedNumbers: res.numbers.filter(
+            (n) => !(res.metadata.fixedNumbers ?? []).includes(n)
+          ),
+        },
+        user?.id
+      );
 
       if (saveRes.success) {
         savedCount++;
