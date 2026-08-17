@@ -102,8 +102,29 @@ Vercel Production 환경변수에 다음 항목을 등록해야 관리자 대시
 
 ---
 
-## 5. Production Supabase DB 적용 안내 (중요)
+## 5. Production Supabase DB 적용 및 service_role 권한
 
-본 Day 34에서 생성된 `supabase/migrations/005_beta_feedback.sql` 파일은 **지침에 따라 아직 프로덕션 Supabase DB에 실행 적용하지 않은 상태**입니다.
+프로덕션 Supabase DB 적용 시 anon/authenticated의 직접 접근은 `REVOKE ALL`로 차단하되, 서버 API의 Service Role Admin Client 조회를 위해 `service_role` 권한을 명시적으로 부여합니다:
 
-사용자의 explicit 승인 후 Supabase Dashboard SQL Editor 또는 CLI migration을 통해 해당 SQL을 실행해 주세요.
+```sql
+revoke all on table public.beta_feedback from anon, authenticated;
+grant select, insert, update, delete on table public.beta_feedback to service_role;
+```
+
+---
+
+## 6. Production E2E 검증 완료 (Real Mobile PWA Test)
+
+실제 프로덕션 환경(https://lotto-strategy.vercel.app)에서 실기기 E2E 검증을 완수하였습니다.
+
+### 검증 결과 요약
+1. **iPhone iOS Safari Standalone PWA 피드백 제출 성공**:
+   - 모바일 홈 화면 PWA 앱 모드에서 '의견 작성' 모달을 통해 실제 피드백 전송 성공.
+2. **Production DB `beta_feedback` INSERT 성공**:
+   - `page`, `device_type`, `os`, `browser`, `app_mode` 메타데이터가 정확하게 수집되어 DB 레코드로 생성됨.
+   - 초기 `severity = UNCLASSIFIED`, `status = NEW` 서버 강제 고정 확인.
+3. **관리자 대시보드 (`/admin/feedback`) GET 및 조치 성공**:
+   - `ADMIN_USER_IDS` 세션 인증을 거쳐 프로덕션 실시간 피드백 1건이 관리자 화면에 완벽히 표시 및 상태 관리 성공.
+   - 회원 / Guest 구분 마스킹 및 `user_id` UUID 비노출 보안 작동 확인.
+4. **`service_role` DB 권한 문제 발견 및 해결**:
+   - `beta_feedback` 테이블 RLS 활성화 상태에서 `service_role` 권한 이슈를 확인하고, Supabase SQL Editor 및 `005_beta_feedback.sql` 파일에 `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.beta_feedback TO service_role;` 영구 명시 반영 완료.

@@ -37,3 +37,6 @@ alter table public.beta_feedback enable row level security;
 
 -- Minimal Privileges: Revoke all default table privileges from anon and authenticated roles
 revoke all on table public.beta_feedback from anon, authenticated;
+
+-- Explicitly grant full CRUD privileges to service_role (used by server API routes)
+grant select, insert, update, delete on table public.beta_feedback to service_role;
