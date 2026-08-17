@@ -91,9 +91,9 @@ export default function QuickRecommendationPage() {
           </div>
 
           {/* 6 Lotto Balls Grid */}
-          <div className="flex items-center justify-between gap-1.5 sm:gap-2 py-2">
+          <div className="flex items-center justify-between gap-1 sm:gap-2 py-2">
             {analysis.numbers.map((num) => (
-              <LottoBall key={num} number={num} size="lg" />
+              <LottoBall key={num} number={num} size="md" />
             ))}
           </div>
 

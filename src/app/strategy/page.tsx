@@ -622,63 +622,87 @@ export default function StrategyPage() {
           )}
         </section>
 
-        {/* Basic 3 Strategy Cards Section */}
-        <section className="space-y-3.5">
-          <div className="flex items-center justify-between px-1">
+        {/* Basic 3 Strategy Segmented Tab Control Section */}
+        <section className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-blue-600" />
-              기본 전략 추천
+              기본 전략 방식 선택
             </h2>
           </div>
 
-          <div className="space-y-3">
+          {/* 3 Strategy Segmented Tab Bar */}
+          <div className="grid grid-cols-3 gap-1.5 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/60">
             {LOTTO_STRATEGIES.map((strategy) => {
-              const IconComponent = getStrategyIcon(strategy.id);
-
+              const isSelected = selectedStrategyId === strategy.id;
               return (
-                <div
+                <button
                   key={strategy.id}
-                  className="w-full bg-white rounded-2xl p-5 border border-slate-200/80 hover:border-blue-200 transition-all duration-200 shadow-xs space-y-3"
+                  onClick={() => setSelectedStrategyId(strategy.id)}
+                  className={`
+                    h-10 rounded-lg text-xs font-black transition-all duration-150 cursor-pointer flex items-center justify-center gap-1
+                    ${
+                      isSelected
+                        ? "bg-white text-blue-600 shadow-xs ring-1 ring-slate-200/80"
+                        : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                    }
+                  `}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/80 shrink-0 mt-0.5">
-                        <IconComponent className="w-5 h-5 stroke-[2]" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-900 text-base sm:text-lg">
-                            {strategy.name}
-                          </h3>
-                          <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-extrabold">
-                            사용 가능
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium mt-1">
-                          {strategy.shortDescription}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
-                    <button
-                      onClick={() => handleGenerateStrategy(strategy.id)}
-                      disabled={isGenerating}
-                      className="w-full sm:w-auto px-4 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-70"
-                    >
-                      <RefreshCw
-                        className={`w-3.5 h-3.5 ${
-                          isGenerating && selectedStrategyId === strategy.id ? "animate-spin" : ""
-                        }`}
-                      />
-                      <span>{strategy.name}로 만들기</span>
-                    </button>
-                  </div>
-                </div>
+                  <span>{strategy.name}</span>
+                </button>
               );
             })}
           </div>
+
+          {/* Selected Active Strategy Card */}
+          {(() => {
+            const activeMeta = LOTTO_STRATEGIES.find((s) => s.id === selectedStrategyId) || LOTTO_STRATEGIES[0];
+
+            return (
+              <div className="space-y-4 pt-1">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/80 shrink-0 mt-0.5">
+                    {activeMeta.id === "recent-trend" ? (
+                      <TrendingUp className="w-5 h-5 stroke-[2]" />
+                    ) : activeMeta.id === "long-absence" ? (
+                      <Clock className="w-5 h-5 stroke-[2]" />
+                    ) : (
+                      <Scale className="w-5 h-5 stroke-[2]" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
+                        {activeMeta.name}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-extrabold">
+                        기본 추천
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+                      {activeMeta.shortDescription}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-medium leading-normal">
+                      {activeMeta.detailDescription}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleGenerateStrategy(activeMeta.id)}
+                  disabled={isGenerating}
+                  className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-70"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${
+                      isGenerating ? "animate-spin" : ""
+                    }`}
+                  />
+                  <span>제{latestDraw ? latestDraw.drawNo + 1 : 1238}회 {activeMeta.name} 번호 만들기</span>
+                </button>
+              </div>
+            );
+          })()}
         </section>
 
         {/* Strategy Generation Results Display Section */}

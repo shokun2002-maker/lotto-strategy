@@ -71,9 +71,9 @@ export default function LottoBall({
   const styles = getBallColorStyle(number);
 
   const sizeClasses = {
-    sm: "w-7 h-7 text-xs font-bold",
-    md: "w-9 h-9 text-sm font-extrabold",
-    lg: "w-11 h-11 text-base font-extrabold",
+    sm: "w-6.5 h-6.5 sm:w-7 sm:h-7 text-[11px] sm:text-xs font-bold",
+    md: "w-8 h-8 sm:w-9 sm:h-9 text-xs sm:text-sm font-extrabold",
+    lg: "w-9.5 h-9.5 sm:w-11 sm:h-11 text-sm sm:text-base font-extrabold",
   }[size];
 
   // User pick visual highlight ring

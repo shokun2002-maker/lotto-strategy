@@ -218,7 +218,7 @@ export default function TogetherPage() {
                   <LottoBall
                     key={num}
                     number={num}
-                    size="lg"
+                    size="md"
                     isUserPick={isUserPick}
                     badgeText={isUserPick ? "MY" : "추천"}
                   />

@@ -10,11 +10,13 @@ import { getSavedCombinationResult } from "@/lib/lotto/saved-result";
 import { getDrawByNumber } from "@/lib/lotto/draw-data";
 import { SavedLottoCombination } from "@/types/lotto";
 import Link from "next/link";
-import { Trash2, Plus, Hash, Calendar, CheckCircle2, Clock, Zap, Sliders } from "lucide-react";
+import { Trash2, Plus, Hash, Calendar, CheckCircle2, Clock, Zap, Sliders, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 
 export default function NumbersPage() {
   const [items, setItems] = useState<SavedLottoCombination[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [collapsedDraws, setCollapsedDraws] = useState<Record<string, boolean>>({});
 
   const nextDraw = getNextDrawInfo();
 
@@ -23,9 +25,17 @@ export default function NumbersPage() {
     setIsLoaded(true);
   }, []);
 
+  const toggleGroupCollapse = (keyStr: string) => {
+    setCollapsedDraws((prev) => ({
+      ...prev,
+      [keyStr]: !prev[keyStr],
+    }));
+  };
+
   const handleDeleteItem = (id: string) => {
     const updated = deleteCombination(id);
     setItems(updated);
+    setDeletingId(null);
   };
 
   const handleClearAll = () => {
@@ -33,6 +43,7 @@ export default function NumbersPage() {
     if (window.confirm("저장된 모든 번호를 삭제하시겠습니까?")) {
       clearAllCombinations();
       setItems([]);
+      setDeletingId(null);
     }
   };
 
@@ -211,9 +222,9 @@ export default function NumbersPage() {
             {/* Draw Groups List */}
             {sortedGroupKeys.map((groupKey) => {
               const groupItems = groupedByDraw.get(groupKey)!;
-              // 회차 내에서 createdAt 오름차순 (저장 순서대로 GAME 1, GAME 2) 정렬
+              // 회차 내에서 createdAt 내림차순 (가장 최근 저장한 조합이 상단 GAME 1) 정렬
               const sortedInGroup = [...groupItems].sort(
-                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
               );
 
               const isUnspecified = groupKey === "unspecified";
@@ -231,46 +242,66 @@ export default function NumbersPage() {
                 drawDateStr = "추첨 예정";
               }
 
+              const groupKeyStr = String(groupKey);
+              const isCollapsed = !!collapsedDraws[groupKeyStr];
+
               return (
-                <div key={String(groupKey)} className="space-y-3">
-                  {/* Group Header */}
-                  <div className="flex items-center justify-between px-1">
+                <div key={groupKeyStr} className="space-y-3">
+                  {/* Group Header with Collapse Toggle */}
+                  <div
+                    onClick={() => toggleGroupCollapse(groupKeyStr)}
+                    className={`
+                      w-full rounded-2xl p-3.5 sm:p-4 border transition-all cursor-pointer flex items-center justify-between shadow-xs
+                      ${
+                        isCompleted
+                          ? "bg-slate-900 text-white border-slate-800"
+                          : isUnspecified
+                          ? "bg-white text-slate-900 border-slate-200/80"
+                          : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-blue-500/10"
+                      }
+                    `}
+                  >
                     <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-blue-600" />
+                      <Calendar className={`w-4 h-4 ${isCompleted || !isUnspecified ? "text-amber-400" : "text-blue-600"}`} />
+                      <h2 className="text-sm sm:text-base font-black">
                         {isUnspecified ? "회차 미지정" : `제${drawNo}회`}
                       </h2>
                       {drawDateStr && (
-                        <span className="text-xs text-slate-400 font-semibold">
+                        <span className={`text-xs font-medium ${isCompleted || !isUnspecified ? "text-slate-300" : "text-slate-500"}`}>
                           ({drawDateStr})
                         </span>
                       )}
                     </div>
 
-                    <span
-                      className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                        isCompleted
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : isUnspecified
-                          ? "bg-slate-100 text-slate-500 border-slate-200"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
-                      }`}
-                    >
-                      {isCompleted ? "추첨 완료" : isUnspecified ? "미지정" : "추첨 전"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                          isCompleted
+                            ? "bg-amber-400/20 text-amber-300 border-amber-400/40"
+                            : isUnspecified
+                            ? "bg-slate-100 text-slate-600 border-slate-200"
+                            : "bg-white/20 text-white border-white/40"
+                        }`}
+                      >
+                        {isCompleted ? "추첨 완료" : isUnspecified ? "미지정" : "추첨 전"}
+                      </span>
+                      <div className={`p-1 rounded-lg ${isCompleted || !isUnspecified ? "text-slate-300 hover:text-white" : "text-slate-400 hover:text-slate-700"}`}>
+                        {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Draw Winning Numbers Header if completed */}
-                  {actualDraw && (
-                    <div className="w-full bg-slate-900 text-white rounded-xl p-3.5 text-xs font-semibold flex items-center justify-between shadow-xs">
-                      <span className="text-slate-300 font-bold">당첨번호:</span>
+                  {!isCollapsed && actualDraw && (
+                    <div className="w-full bg-slate-800 text-white rounded-xl p-3.5 text-xs font-semibold flex items-center justify-between shadow-xs">
+                      <span className="text-slate-300 font-bold">공식 당첨번호:</span>
                       <div className="flex items-center gap-1 font-black">
                         {actualDraw.numbers.map((n) => (
-                          <span key={n} className="bg-slate-800 px-1.5 py-0.5 rounded text-amber-400">
+                          <span key={n} className="bg-slate-900 px-1.5 py-0.5 rounded text-amber-400">
                             {n < 10 ? `0${n}` : n}
                           </span>
                         ))}
-                        <span className="text-slate-500 mx-0.5">+</span>
+                        <span className="text-slate-400 mx-0.5">+</span>
                         <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded">
                           {actualDraw.bonus}
                         </span>
@@ -279,112 +310,135 @@ export default function NumbersPage() {
                   )}
 
                   {/* Combination Cards in Group */}
-                  <div className="space-y-3">
-                    {sortedInGroup.map((item, idx) => {
-                      const result = getSavedCombinationResult(item);
-                      const isStrategy = item.source === "strategy";
-                      const isTogether = item.source === "together";
+                  {!isCollapsed && (
+                    <div className="space-y-3">
+                      {sortedInGroup.map((item, idx) => {
+                        const result = getSavedCombinationResult(item);
+                        const isStrategy = item.source === "strategy";
+                        const isTogether = item.source === "together";
+                        const isDeleting = deletingId === item.id;
 
-                      return (
-                        <div
-                          key={item.id}
-                          className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3.5 hover:border-slate-300 transition-all"
-                        >
-                          {/* Item Header */}
-                          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-slate-900">
-                                GAME {idx + 1}
-                              </span>
-                              <span
-                                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                                  isStrategy
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                    : isTogether
-                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                    : "bg-blue-50 text-blue-700 border-blue-200"
-                                }`}
-                              >
-                                {getSourceBadgeText(item)}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {/* Result Status Badge */}
-                              {result.status === "completed" && result.match ? (
+                        return (
+                          <div
+                            key={item.id}
+                            className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3.5 hover:border-slate-300 transition-all"
+                          >
+                            {/* Item Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-900">
+                                  GAME {idx + 1}
+                                </span>
                                 <span
-                                  className={`text-xs font-black px-2.5 py-0.5 rounded-md ${
-                                    result.match.rank === 1
-                                      ? "bg-amber-500 text-white"
-                                      : result.match.rank === 2
-                                      ? "bg-blue-600 text-white"
-                                      : result.match.rank === 3
-                                      ? "bg-indigo-600 text-white"
-                                      : result.match.rank === 4
-                                      ? "bg-emerald-600 text-white"
-                                      : result.match.rank === 5
-                                      ? "bg-teal-600 text-white"
-                                      : "bg-slate-100 text-slate-600 font-bold"
+                                  className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                    isStrategy
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      : isTogether
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                      : "bg-blue-50 text-blue-700 border-blue-200"
                                   }`}
                                 >
-                                  {result.match.rank
-                                    ? `${result.match.rank}등 당첨`
-                                    : result.match.matchCount > 0
-                                    ? `${result.match.matchCount}개 일치`
-                                    : "당첨 없음"}
+                                  {getSourceBadgeText(item)}
                                 </span>
-                              ) : (
-                                <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  결과 대기
-                                </span>
-                              )}
+                              </div>
 
-                              <button
-                                onClick={() => handleDeleteItem(item.id)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="조합 삭제"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center gap-2">
+                                {/* Result Status Badge */}
+                                {result.status === "completed" && result.match ? (
+                                  <span
+                                    className={`text-xs font-black px-2.5 py-0.5 rounded-md ${
+                                      result.match.rank === 1
+                                        ? "bg-amber-500 text-white"
+                                        : result.match.rank === 2
+                                        ? "bg-blue-600 text-white"
+                                        : result.match.rank === 3
+                                        ? "bg-indigo-600 text-white"
+                                        : result.match.rank === 4
+                                        ? "bg-emerald-600 text-white"
+                                        : result.match.rank === 5
+                                        ? "bg-teal-600 text-white"
+                                        : "bg-slate-100 text-slate-600 font-bold"
+                                    }`}
+                                  >
+                                    {result.match.rank
+                                      ? `${result.match.rank}등 당첨`
+                                      : result.match.matchCount > 0
+                                      ? `${result.match.matchCount}개 일치`
+                                      : "당첨 없음"}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    결과 대기
+                                  </span>
+                                )}
+
+                                {/* Delete Action with Inline Confirmation Safety */}
+                                {isDeleting ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleDeleteItem(item.id)}
+                                      className="px-2 py-1 rounded-md bg-rose-600 text-white text-[11px] font-extrabold hover:bg-rose-700 transition-colors cursor-pointer flex items-center gap-0.5"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      <span>삭제</span>
+                                    </button>
+                                    <button
+                                      onClick={() => setDeletingId(null)}
+                                      className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[11px] font-extrabold hover:bg-slate-200 transition-colors cursor-pointer flex items-center gap-0.5"
+                                    >
+                                      <X className="w-3 h-3" />
+                                      <span>취소</span>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeletingId(item.id)}
+                                    className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="조합 삭제"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 6 Lotto Balls Grid */}
+                            <div className="flex items-center justify-between gap-1 sm:gap-2 py-1">
+                              {item.numbers.map((num) => {
+                                const isMatched =
+                                  result.status === "completed" &&
+                                  result.match?.matchedNumbers.includes(num);
+                                const isBonusMatched =
+                                  result.status === "completed" &&
+                                  result.draw?.bonus === num;
+
+                                const isUserPick =
+                                  item.userPickedNumbers?.includes(num) ||
+                                  item.fixedNumbers?.includes(num);
+
+                                return (
+                                  <LottoBall
+                                    key={num}
+                                    number={num}
+                                    size="md"
+                                    isUserPick={isUserPick || isMatched}
+                                    badgeText={
+                                      isBonusMatched
+                                        ? "보너스"
+                                        : isUserPick
+                                        ? getFeaturedBadgeText(item, num)
+                                        : undefined
+                                    }
+                                  />
+                                );
+                              })}
                             </div>
                           </div>
-
-                          {/* 6 Lotto Balls Grid */}
-                          <div className="flex items-center justify-between gap-1 sm:gap-2 py-1">
-                            {item.numbers.map((num) => {
-                              const isMatched =
-                                result.status === "completed" &&
-                                result.match?.matchedNumbers.includes(num);
-                              const isBonusMatched =
-                                result.status === "completed" &&
-                                result.draw?.bonus === num;
-
-                              const isUserPick =
-                                item.userPickedNumbers?.includes(num) ||
-                                item.fixedNumbers?.includes(num);
-
-                              return (
-                                <LottoBall
-                                  key={num}
-                                  number={num}
-                                  size="md"
-                                  isUserPick={isUserPick || isMatched}
-                                  badgeText={
-                                    isBonusMatched
-                                      ? "보너스"
-                                      : isUserPick
-                                      ? getFeaturedBadgeText(item, num)
-                                      : undefined
-                                  }
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
