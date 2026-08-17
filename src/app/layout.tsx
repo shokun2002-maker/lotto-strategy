@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { EntitlementProvider } from "@/components/subscription/EntitlementContext";
 import "./globals.css";
@@ -19,11 +19,23 @@ const baseUrl =
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "https://lotto-strategy.vercel.app");
 
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: "로또전략 | LOTTO STRATEGY",
   description:
     "과거 로또 6/45 공개 데이터를 기반으로 번호 조합과 통계적 특성을 확인하고 나만의 전략을 관리하는 참고용 도구.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "LOTTO STRATEGY",
+  },
   openGraph: {
     title: "로또전략 | LOTTO STRATEGY",
     description:
@@ -33,8 +45,11 @@ export const metadata: Metadata = {
     type: "website",
   },
   icons: {
-    icon: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
