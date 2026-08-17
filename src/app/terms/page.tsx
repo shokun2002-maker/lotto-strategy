@@ -47,17 +47,17 @@ export default function TermsPage() {
           <article className="space-y-1.5">
             <h2 className="font-extrabold text-sm text-slate-900">제1조 (목적)</h2>
             <p>
-              본 약관은 글로컬소프트(이하 "회사")가 제공하는 웹 서비스 "LOTTO STRATEGY"(이하 "서비스")의 이용조건, 절차 및 이용자와 회사 간의 권리와 의무를 규정함을 목적으로 합니다.
+              본 약관은 글로컬소프트(이하 &quot;회사&quot;)가 제공하는 웹 서비스 &quot;LOTTO STRATEGY&quot;(이하 &quot;서비스&quot;)의 이용조건, 절차 및 이용자와 회사 간의 권리와 의무를 규정함을 목적으로 합니다.
             </p>
           </article>
 
           <article className="space-y-1.5">
             <h2 className="font-extrabold text-sm text-slate-900">제2조 (용어의 정의)</h2>
             <ol className="list-decimal pl-4 space-y-1">
-              <li>"서비스"라 함은 회사가 제공하는 로또 6/45 통계 분석, 커스텀 전략 설정, 번호 조합 생성 및 클라우드 동기화 기능을 의미합니다.</li>
-              <li>"이용자"라 함은 본 약관에 따라 서비스를 이용하는 회원 및 비회원(Guest)을 말합니다.</li>
-              <li>"FREE 요금제"라 함은 기본 분석 및 1개 전략 저장을 무료로 제공하는 서비스 등급입니다.</li>
-              <li>"PRO 요금제"라 함은 커스텀 전략 다중 저장(최대 20개), 3·5게임 생성 등 고급 기능을 제공하는 서비스 등급입니다.</li>
+              <li>&quot;서비스&quot;라 함은 회사가 제공하는 로또 6/45 통계 분석, 커스텀 전략 설정, 번호 조합 생성 및 클라우드 동기화 기능을 의미합니다.</li>
+              <li>&quot;이용자&quot;라 함은 본 약관에 따라 서비스를 이용하는 회원 및 비회원(Guest)을 말합니다.</li>
+              <li>&quot;FREE 요금제&quot;라 함은 기본 분석 및 1개 전략 저장을 무료로 제공하는 서비스 등급입니다.</li>
+              <li>&quot;PRO 요금제&quot;라 함은 커스텀 전략 다중 저장(최대 20개), 3·5게임 생성 등 고급 기능을 제공하는 서비스 등급입니다.</li>
             </ol>
           </article>
 

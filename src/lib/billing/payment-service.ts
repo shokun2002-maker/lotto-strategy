@@ -9,11 +9,12 @@ import { isBillingApproved } from "./capabilities";
 import { markPaymentPaid } from "./subscription-service";
 
 function createAdminSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    "placeholder-key";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return null;
+  }
 
   return createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: {
@@ -74,6 +75,7 @@ const SEED_PRODUCTS: Record<string, PaymentProduct> = {
 export async function getPaymentProduct(productId: string): Promise<PaymentProduct | null> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return SEED_PRODUCTS[productId] || null;
     const { data, error } = await supabase
       .from("payment_products")
       .select("*")
@@ -140,6 +142,7 @@ export async function grantAccessPass(
 ): Promise<{ success: boolean; startsAt?: string; endsAt?: string; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, error: "Server configuration error" };
     const now = new Date();
     const durationDays = params.durationDays > 0 ? params.durationDays : 1;
     const endsDate = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
@@ -166,8 +169,8 @@ export async function grantAccessPass(
     }
 
     return { success: true, startsAt, endsAt };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Grant Access Pass error" };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error)?.message || "Grant Access Pass error" };
   }
 }
 
@@ -179,6 +182,7 @@ export async function revokeExpiredAccess(
 ): Promise<{ success: boolean; currentPlan: "free" | "pro"; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, currentPlan: "free", error: "Server configuration error" };
 
     // 1. 활성화된 정기구독(subscriptions) 존재 여부 확인
     const { data: activeSub } = await supabase
@@ -207,7 +211,7 @@ export async function revokeExpiredAccess(
     );
 
     return { success: true, currentPlan: "free" };
-  } catch (err: any) {
-    return { success: false, currentPlan: "free", error: err?.message || "Revoke access error" };
+  } catch (err: unknown) {
+    return { success: false, currentPlan: "free", error: (err as Error)?.message || "Revoke access error" };
   }
 }

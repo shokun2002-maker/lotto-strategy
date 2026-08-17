@@ -12,12 +12,12 @@ import {
  * (RLS 우회 및 서버 검증 완료 건에 대한 db mutation 수행)
  */
 function createAdminSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-  // SUPABASE_SERVICE_ROLE_KEY가 없으면 fallback으로 anon key 사용 (서버 전용)
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    "placeholder-key";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return null;
+  }
 
   return createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: {
@@ -36,6 +36,7 @@ export async function activateSubscription(
 ): Promise<{ success: boolean; subscription?: SubscriptionRecord; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, error: "Server configuration error" };
     const now = new Date();
     const periodDays = params.periodDays || 30;
     const periodEnd = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
@@ -106,8 +107,8 @@ export async function activateSubscription(
     };
 
     return { success: true, subscription };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Server activation error" };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error)?.message || "Server activation error" };
   }
 }
 
@@ -120,6 +121,7 @@ export async function cancelSubscription(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, error: "Server configuration error" };
     const nowIso = new Date().toISOString();
 
     if (params.immediate) {
@@ -164,8 +166,8 @@ export async function cancelSubscription(
     }
 
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Cancellation error" };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error)?.message || "Cancellation error" };
   }
 }
 
@@ -179,6 +181,7 @@ export async function expireSubscription(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, error: "Server configuration error" };
     const nowIso = new Date().toISOString();
 
     await supabase
@@ -203,8 +206,8 @@ export async function expireSubscription(
       );
 
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Expiration error" };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error)?.message || "Expiration error" };
   }
 }
 
@@ -221,6 +224,7 @@ export async function markPaymentPaid(params: {
 }): Promise<{ success: boolean; isDuplicate?: boolean; payment?: PaymentRecord; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, error: "Server configuration error" };
 
     // Idempotency 체크: 동일 order_id가 이미 존재하는지 확인
     const { data: existing } = await supabase
@@ -287,8 +291,8 @@ export async function markPaymentPaid(params: {
         createdAt: data.created_at,
       },
     };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Payment record error" };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error)?.message || "Payment record error" };
   }
 }
 
@@ -305,6 +309,7 @@ export async function markPaymentFailed(params: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminSupabaseClient();
+    if (!supabase) return { success: false, error: "Server configuration error" };
     const nowIso = new Date().toISOString();
 
     await supabase.from("payments").insert({
@@ -330,7 +335,7 @@ export async function markPaymentFailed(params: {
     }
 
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to log payment failure" };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error)?.message || "Failed to log payment failure" };
   }
 }

@@ -26,14 +26,16 @@ export async function GET() {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("GET /api/billing/subscription DB error:", error.message);
+      return NextResponse.json({ error: "구독 정보를 조회하는 중 오류가 발생했습니다." }, { status: 500 });
     }
 
     return NextResponse.json({
       subscription: subscription || null,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal Error" }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("GET /api/billing/subscription exception:", err);
+    return NextResponse.json({ error: "구독 정보를 조회하는 중 오류가 발생했습니다." }, { status: 500 });
   }
 }
 
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
       });
 
       if (!res.success) {
-        return NextResponse.json({ error: res.error }, { status: 400 });
+        return NextResponse.json({ error: res.error || "구독 해지 요청 처리 중 오류가 발생했습니다." }, { status: 400 });
       }
 
       return NextResponse.json({
@@ -70,8 +72,9 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal Error" }, { status: 500 });
+    return NextResponse.json({ error: "유효하지 않은 요청입니다." }, { status: 400 });
+  } catch (err: unknown) {
+    console.error("POST /api/billing/subscription exception:", err);
+    return NextResponse.json({ error: "구독 해지 요청 처리 중 오류가 발생했습니다." }, { status: 500 });
   }
 }

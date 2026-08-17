@@ -13,7 +13,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://lotto-strategy.vercel.app");
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
